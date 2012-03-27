@@ -110,8 +110,8 @@ can.Control('Todos',{
 	
 	// Listen for editing a Todo
 	'.todo dblclick' : function(el) {
-		el.all('.view').getData('todo').attr('editing', true).save(function() {
-			el.all('.edit').focus();
+		el.one('.view').getData('todo').attr('editing', true).save(function() {
+			el.one('.edit').focus();
 		});
 	},
 	
@@ -122,7 +122,7 @@ can.Control('Todos',{
 		}
 	},
 	'.todo .edit blur' : function(el, ev) {
-		el.ancestor('.todo').all('.view').getData('todo')
+		el.ancestor('.todo').one('.view').getData('todo')
 			.attr({
 				editing: false,
 				text: el.get('value')
