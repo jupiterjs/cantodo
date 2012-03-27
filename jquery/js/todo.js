@@ -157,7 +157,7 @@ can.Control('Todos',{
 	},
 		
 	// Handle an change in the Todo list
-	'{todos} change' : function(list, ev, item){
+	'{todos} change' : function(){
 		var completed = 0,
 			length = this.options.todos.length;
 		can.each(this.options.todos, function(i, todo) {
