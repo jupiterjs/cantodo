@@ -1,5 +1,5 @@
-#main,
-#todoapp footer,
-#clear-completed {
+#main.show,
+#stats.show,
+#stats.show #clear-completed {
   display: block;
 }

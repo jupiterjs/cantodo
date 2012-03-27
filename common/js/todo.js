@@ -1,8 +1,12 @@
 (function() {
 
+// Basic Todo entry model
+// { text: 'todo', complete: false }
 can.Model('Todo', {
+	
+	// Implement local storage handling
 	localStore: function(cb){
-		var name = 'cantodo',
+		var name = 'todos-canjs',
 			data = JSON.parse( window.localStorage[name] || (window.localStorage[name] = '{}') ),
 			res = cb.call(this, data);
 		if(res !== false){
@@ -12,6 +16,7 @@ can.Model('Todo', {
 			window.localStorage[name] = JSON.stringify(data);
 		}
 	},
+	
 	findAll: function(params, success){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
@@ -23,6 +28,7 @@ can.Model('Todo', {
 		})
 		return def;
 	},
+	
 	destroy: function(id, success){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
@@ -31,6 +37,7 @@ can.Model('Todo', {
 		});
 		return def
 	},
+	
 	create: function(attrs, success){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
@@ -40,6 +47,7 @@ can.Model('Todo', {
 		def.resolve({id : attrs.id});
 		return def
 	},
+	
 	update: function(id, attrs, success){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
@@ -49,10 +57,13 @@ can.Model('Todo', {
 		def.resolve({});
 		return def
 	}
+	
 },{});
 
+// List container for Todos, adds utility methods
 can.Model.List('Todo.List',{
 	
+	// Sorts by text content
 	sort: function() {
 		return [].sort.call(this, function(a,b) {
 			return (a.text > b.text && 1) || (a.text < b.text && -1) || 0;

@@ -16,9 +16,9 @@ can.Control('Todos',{
 		Todo.findAll({}, function(todos) {
 			self.todos = todos.sort();
 			self.updateStats();
-			$('#main').append(can.view('../common/views/main', { stats: self.stats }));
+			$('#todoapp').append(can.view('../common/views/main', { stats: self.stats }));
+			$('#todoapp').append(can.view('../common/views/stats', { stats: self.stats }));
 			$('#todo-list').append(can.view('../common/views/todos', { todos: self.todos }));
-			$('#stats').append(can.view('../common/views/stats', { stats: self.stats }));
 		});
 	},
 		
