@@ -78,23 +78,17 @@ can.Control('Todos',{
 
 	// Initialize the Todos list
 	init : function(){
-		var self = this;
-		
-		// Setup statistics.
-		this.stats = new can.Observe();
-	
-		// Clear the new Todo entry
+		// Clear the new todo field
 		Y.one('#new-todo').set('value','').focus();
+		
+		// Initialize statistics
+		this['{todos} change']();
 	
 		// Render the Todos
-		Todo.findAll({}, function(todos) {
-			self.todos = todos.sort();
-			self.updateStats();
-			Y.one('#todoapp').append(can.view('views/todo', {
-				stats: self.stats,
-				todos: self.todos
-			}));
-		});
+		this.element.append(can.view('views/todo', {
+			stats: this.stats,
+			todos: this.options.todos
+		}));
 	},
 		
 	// Listen for when a new Todo has been entered
@@ -111,8 +105,7 @@ can.Control('Todos',{
 	
 	// Handle a newly created Todo
 	'{Todo} created' : function(list, ev, item){
-		this.todos.push(item);
-		this.updateStats();
+		this.options.todos.push(item);
 	},
 	
 	// Listen for editing a Todo
@@ -142,11 +135,6 @@ can.Control('Todos',{
 			.attr('complete', el.get('checked'))
 			.save();
 	},
-		
-	// Handle an updated Todo
-	'{Todo} updated' : function(list, ev, item){
-		this.updateStats();
-	},
 	
 	// Listen for a removed Todo
 	'.todo .destroy click' : function(el){;
@@ -156,7 +144,7 @@ can.Control('Todos',{
 	// Listen for toggle all completed Todos
 	'#toggle-all change' : function(el, ev) {
 		var toggle = !!this.stats.attr('remaining');
-		can.each(this.todos, function(i, todo) {
+		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
 		});
 		el.set('checked', toggle);
@@ -165,35 +153,37 @@ can.Control('Todos',{
 	
 	// Listen for removing all completed Todos
 	'#clear-completed click' : function() {
-		for (var i = this.todos.length - 1, todo; i > -1 && (todo = this.todos[i]); i--) {
+		for (var i = this.options.todos.length - 1, todo; i > -1 && (todo = this.options.todos[i]); i--) {
 			todo.attr('complete') && todo.destroy();
 		}
 	},
-	
-	// Handle a destroyed Todo
-	'{Todo} destroyed' : function(list, ev, destroyed){
-		this.updateStats();
-	},
 		
-	// Calculate the updated statistics
-	updateStats : function(){
-		var completed = 0;
-		can.each(this.todos, function(i, todo) {
+	// Handle an change in the Todo list
+	'{todos} change' : function(list, ev, item){
+		var completed = 0,
+			length = this.options.todos.length;
+		can.each(this.options.todos, function(i, todo) {
 			completed += todo.complete ? 1 : 0;
 		});
 		
 		// Update the stats
+		this.stats = this.stats || new can.Observe();
 		this.stats.attr({
 			completed: completed,
-			total: this.todos.length,
-			remaining: this.todos.length - completed,
-			allComplete: this.todos.length === completed
+			total: length,
+			remaining: length - completed,
+			allComplete: length === completed
 		});
 	}
 
 })
 
-new Todos('#todoapp');
+// Initialize the app
+Todo.findAll({}, function(todos) {
+	new Todos('#todoapp', {
+		todos: todos
+	});
+});
 
 });
 
