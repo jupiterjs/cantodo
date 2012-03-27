@@ -1,5 +1,77 @@
 (function() {
 
+// Basic Todo entry model
+// { text: 'todo', complete: false }
+can.Model('Todo', {
+	
+	// Implement local storage handling
+	localStore: function(cb){
+		var name = 'todos-canjs-jquery',
+			data = JSON.parse( window.localStorage[name] || (window.localStorage[name] = '{}') ),
+			res = cb.call(this, data);
+		if(res !== false){
+			for (var id in data) {
+				delete data[id].editing;
+			}
+			window.localStorage[name] = JSON.stringify(data);
+		}
+	},
+	
+	findAll: function(params, success){
+		var def = new can.Deferred();
+		this.localStore(function(todos){
+			var instances = [];
+			for(var id in todos){
+				instances.push( new this(todos[id]) )
+			}
+			def.resolve({data: instances});
+		})
+		return def;
+	},
+	
+	destroy: function(id, success){
+		var def = new can.Deferred();
+		this.localStore(function(todos){
+			delete todos[id];
+			def.resolve({});
+		});
+		return def
+	},
+	
+	create: function(attrs, success){
+		var def = new can.Deferred();
+		this.localStore(function(todos){
+			attrs.id = attrs.id || parseInt(100000 *Math.random());
+			todos[attrs.id] = attrs;
+		});
+		def.resolve({id : attrs.id});
+		return def
+	},
+	
+	update: function(id, attrs, success){
+		var def = new can.Deferred();
+		this.localStore(function(todos){
+			var todo = todos[id];
+			can.extend(todo, attrs);
+		});
+		def.resolve({});
+		return def
+	}
+	
+},{});
+
+// List container for Todos, adds utility methods
+can.Model.List('Todo.List',{
+	
+	// Sorts by text content
+	sort: function() {
+		return [].sort.call(this, function(a,b) {
+			return (a.text > b.text && 1) || (a.text < b.text && -1) || 0;
+		});
+	}
+	
+});
+
 can.Control('Todos',{
 
 	// Initialize the Todos list
@@ -16,9 +88,10 @@ can.Control('Todos',{
 		Todo.findAll({}, function(todos) {
 			self.todos = todos.sort();
 			self.updateStats();
-			$('#todoapp').append(can.view('../common/views/main', { stats: self.stats }));
-			$('#todoapp').append(can.view('../common/views/stats', { stats: self.stats }));
-			$('#todo-list').append(can.view('../common/views/todos', { todos: self.todos }));
+			$('#todoapp').append(can.view('views/todo', {
+				stats: self.stats,
+				todos: self.todos
+			}));
 		});
 	},
 		
@@ -42,8 +115,7 @@ can.Control('Todos',{
 	
 	// Listen for editing a Todo
 	'.todo dblclick' : function(el) {
-		var view = el.children('.view');
-		view.data('todo').attr('editing', true).save(function() {
+		el.children('.view').data('todo').attr('editing', true).save(function() {
 			el.children('.edit').focus();
 		});
 	},
@@ -56,9 +128,10 @@ can.Control('Todos',{
 	},
 	'.todo .edit blur' : function(el, ev) {
 		el.closest('.todo').children('.view').data('todo')
-			.attr('editing', false)
-			.attr('text', el.val())
-			.save();
+			.attr({
+				editing: false,
+				text: el.val()
+			}).save();
 	},
 	
 	// Listen for the toggled completion of a Todo
@@ -108,11 +181,12 @@ can.Control('Todos',{
 		});
 		
 		// Update the stats
-		this.stats
-			.attr('completed', completed)
-			.attr('total', this.todos.length)
-			.attr('remaining', this.todos.length - completed)
-			.attr('allComplete', this.todos.length === completed && completed > 0);
+		this.stats.attr({
+			completed: completed,
+			total: this.todos.length,
+			remaining: this.todos.length - completed,
+			allComplete: this.todos.length === completed
+		});
 	}
 
 })
