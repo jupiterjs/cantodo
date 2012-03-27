@@ -40,7 +40,7 @@ can.Control('Todos',{
 	// Handle a newly created Todo
 	"{Todo} created" : function(list, ev, item){
 		$('#todo-list').append(can.view('../common/views/todo', { todo: item }));
-		this.updateStats();
+		this.updateStats(1);
 	},
 	
 	// Listen for editing a Todo
@@ -94,7 +94,7 @@ can.Control('Todos',{
 	},
 		
 	// Calculate the updated statistics
-	updateStats : function(){
+	updateStats : function(created){
 		var completed = 0;
 		can.each(this.todos, function(i, todo) {
 			completed += todo.complete ? 1 : 0;
@@ -103,8 +103,8 @@ can.Control('Todos',{
 		// Update the stats
 		this.stats
 			.attr('completed', completed)
-			.attr('total', this.todos.length)
-			.attr('remaining', this.todos.length - completed);
+			.attr('total', this.todos.length + (created || 0))
+			.attr('remaining', this.todos.length + (created || 0) - completed);
 	}
 
 })
