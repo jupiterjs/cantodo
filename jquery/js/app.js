@@ -82,7 +82,7 @@ can.Control('Todos',{
 			self.todos = todos.sort();
 			self.updateStats();
 			$('#todo-list').append(can.view('views/todos', { todos: self.todos }));
-			$('#todo-count').append(can.view('views/stats', { stats: self.stats }));
+			$('#stats').append(can.view('views/stats', { stats: self.stats }));
 		});
 	},
 		
