@@ -1,0 +1,6 @@
+<li class="todo" <%= (el) -> can.data(el, 'todo', todo) %>>
+	<input type='checkbox' name='complete' 
+		<%= todo.complete ? "checked" : "" %>>
+	<span class=''><%= (todo.text || "empty todo ...")%></span>
+	<span class='destroy'></span>
+</li>
