@@ -48,33 +48,18 @@ can.Model('Todo', {
 	}
 },{});
 
-/**
- * Helper methods on collections of todos.  But lists can also use their model's 
- * methods.  Ex:
- * 
- *   var todos = [new Todo({id: 5}) , new Todo({id: 6})],
- *       list = new Todo.List(todos);
- *       
- *   list.destroyAll() -> calls Todo.destroyAll with [5,6].
- */
 can.Model.List('Todo.List',{
+	
+	sort: function() {
+		return [].sort.call(this, function(a,b) {
+			return (a.text > b.text && 1) || (a.text < b.text && -1) || 0;
+		});
+	}
+	
 });
 
-/**
- * A Todos widget created like
- * 
- *    $("#todos").todos({ list: new Todo.List() });
- *    
- * It listens on changes to the list and items in the list with the following actions:
- * 
- *   - "{list} add"    - todos being added to the list
- *   - "{list} remove" - todos being removed from the list
- *   - "{list} update" - todos being updated in the list
- *   
- */
 can.Control('Todos',{
 
-	// sets up the widget
 	init : function(){
 		var self = this;
 		this.calendar = this.options.calendar;
@@ -84,7 +69,7 @@ can.Control('Todos',{
 	
 		// fills this list of items (creates add events on the list)
 		Todo.findAll({}, function(todos) {
-			self.todos = todos;
+			self.todos = todos.sort();
 			$('#todo-list').append(can.view('views/todos', { todos: todos }));
 		});
 	},
@@ -101,31 +86,17 @@ can.Control('Todos',{
 		}
 	},
 		
-	// Creating a todo --------------
-	// When a todo is created, add it to this list
 	"{Todo} created" : function(list, ev, item){
-		console.log('created');
 		$('#todo-list').append(can.view('views/todo', { todo: item }))
 		 	
-		// calls a helper to update the stats info
 		this.updateStats();
 	},
 		
-	"{Todo} destroyed" : function(list, ev, destroyed){		
-		console.log('destroyed');
-		var index = this.todos.indexOf(destroyed);
-		// console.log(Y.one("#todo-list li:nth-child("+(index+1)+")").getDOMNode().innerHTML);
-		return;
-		$("#todo-list li:nth-child("+(index+1)+")").remove()
-		 	
-		// calls a helper to update the stats info
+	"{Todo} destroyed" : function(list, ev, destroyed){
 		this.updateStats();
 	},
 				
-	// Destroying a todo --------------
-	// the clear button is clicked
-	"#clear-completed click" : function(){
-		console.log('clear-completed');
+	"#clear-completed click" : function() {
 		can.each(this.todos, function(i, todo) {
 			if (todo.complete) {
 				todo.destroy();
@@ -133,23 +104,15 @@ can.Control('Todos',{
 		});
 	},
 		
-	// When a todo's destroy button is clicked.
-	".todo .destroy click" : function(el){
-		// console.log(can.data(can.$(el.ancestor('.todo')), 'todo'));
-		// var todo = can.data(can.$(el.ancestor('.todo')), 'todo').destroy();
-		el.closest('.todo').data('todo').destroy();
+	".todo .destroy click" : function(el){;
+		el.closest('.view').data('todo').destroy();
 	},
 		
+	".todo .toggle change" : function(el, ev) {
+		var todo = el.closest('.view').data('todo');
+		todo.attr('complete', el.is(':checked')).save();
+	},
 		
-	// // Updating a todo --------------
-	// 	
-	// // when the checkbox changes, update the model
-	// ".todo [name=complete] change" : function(el, ev) {
-	// 	var todo = can.data(el.ancestor('.todo'), 'todo').update({
-	// 		complete : el.is(':checked')
-	// 	});
-	// },
-	// 	
 	// // switch to edit mode
 	// ".todo dblclick" : function(el){
 	// 	var input = can.$("<input name='text' class='text'/>").set('value', el.getData('todo').text)
@@ -165,12 +128,10 @@ can.Control('Todos',{
 	// 	});
 	// },
 	// 	
-	// // when an item is updated
-	// "{Todo} updated" : function(list, ev, item){
-	// 	item.elements().setContent(can.view('views/todo', { todo: item }));
-	// 	this.updateStats();
-	// 	//update completed
-	// },
+	// when an item is updated
+	"{Todo} updated" : function(list, ev, item){
+		this.updateStats();
+	},
 		
 	// a helper that updates the stats
 	updateStats : function(){
