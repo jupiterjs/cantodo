@@ -2,7 +2,7 @@
 
 can.Model('Todo', {
 	localStore: function(cb){
-		var name = 'cantodo-jquery',
+		var name = 'cantodo',
 			data = JSON.parse( window.localStorage[name] || (window.localStorage[name] = "{}") ),
 			res = cb.call(this, data);
 		if(res !== false){
