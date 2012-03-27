@@ -156,7 +156,7 @@ can.Control('Todos',{
 		}
 	},
 		
-	// Handle an change in the Todo list
+	// Update statistics on change in the Todo list
 	'{todos} change' : function(){
 		var completed = 0,
 			length = this.options.todos.length;
