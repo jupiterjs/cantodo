@@ -66,6 +66,13 @@ can.Control('Todos',{
 	// Initialize the Todos list
 	init : function(){
 		var self = this;
+		
+		// Setup statistics.
+		this.stats = new can.Observe({
+			completed: 0,
+			total: 0,
+			remaining: 0
+		});
 	
 		// Clear the new Todo entry
 		$("#new-todo").val('').focus();
@@ -73,7 +80,9 @@ can.Control('Todos',{
 		// Render the Todos
 		Todo.findAll({}, function(todos) {
 			self.todos = todos.sort();
-			$('#todo-list').append(can.view('views/todos', { todos: todos }));
+			self.updateStats();
+			$('#todo-list').append(can.view('views/todos', { todos: self.todos }));
+			$('#todo-count').append(can.view('views/stats', { stats: self.stats }));
 		});
 	},
 		
@@ -91,8 +100,7 @@ can.Control('Todos',{
 	
 	// Handle a newly created Todo
 	"{Todo} created" : function(list, ev, item){
-		$('#todo-list').append(can.view('views/todo', { todo: item }))
-		 	
+		$('#todo-list').append(can.view('views/todo', { todo: item }));
 		this.updateStats();
 	},
 	
@@ -100,18 +108,21 @@ can.Control('Todos',{
 	".todo dblclick" : function(el) {
 		var view = el.children('.view');
 		view.data('todo').attr('editing', true).save(function() {
-			view.children('.edit').focus();
+			el.children('.edit').focus();
 		});
 	},
 	
 	// Listen for an edited Todo
 	".todo .edit keyup" : function(el, ev){
 		if(ev.keyCode == 13){
-			el.closest('.todo').children('.view').data('todo')
-				.attr('editing', false)
-				.attr('text', el.val())
-				.save();
+			this[".todo .edit blur"].apply(this, arguments);
 		}
+	},
+	".todo .edit blur" : function(el, ev) {
+		el.closest('.todo').children('.view').data('todo')
+			.attr('editing', false)
+			.attr('text', el.val())
+			.save();
 	},
 	
 	// Listen for the toggled completion of a Todo
@@ -143,15 +154,18 @@ can.Control('Todos',{
 		this.updateStats();
 	},
 		
-	// a helper that updates the stats
+	// Calculate the updated statistics
 	updateStats : function(){
-		// var list = this.options.list,
-		// 	completed = list.completed().length;
-		// $("#todo-stats").html("statsEJS",{
-		// 	completed : completed,
-		// 	total : list.length,
-		// 	remaining : list.length - completed
-		// })
+		var completed = 0;
+		can.each(this.todos, function(i, todo) {
+			completed += todo.complete ? 1 : 0;
+		});
+		
+		// Update the stats
+		this.stats
+			.attr('completed', completed)
+			.attr('total', this.todos.length)
+			.attr('remaining', this.todos.length - completed);
 	}
 
 })
