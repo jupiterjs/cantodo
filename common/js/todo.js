@@ -3,7 +3,7 @@
 can.Model('Todo', {
 	localStore: function(cb){
 		var name = 'cantodo',
-			data = JSON.parse( window.localStorage[name] || (window.localStorage[name] = "{}") ),
+			data = JSON.parse( window.localStorage[name] || (window.localStorage[name] = '{}') ),
 			res = cb.call(this, data);
 		if(res !== false){
 			for (var id in data) {
