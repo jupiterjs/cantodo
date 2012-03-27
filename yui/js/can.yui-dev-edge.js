@@ -229,7 +229,7 @@
                 }
             });
         } else {
-            var obj = nodelist, events = obj.__canEvents || {}, handlers = events[eventName], handler = handlers[cb.__bindingsIds];
+            var obj = nodelist, events = obj.__canEvents || {}, handlers = events[ev], handler = handlers[cb.__bindingsIds];
             handler.detach();
             delete handlers[cb.__bindingsIds];
             if (can.isEmptyObject(handlers)) {

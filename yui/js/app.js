@@ -139,8 +139,9 @@ YUI().use('calendar', 'json', 'node', function(Y) {
 			
 		// When a todo's destroy button is clicked.
 		".todo .destroy click" : function(el){
-			console.log(can.data(can.$(el.ancestor('.todo')), 'todo'));
-			var todo = can.data(can.$(el.ancestor('.todo')), 'todo').destroy();
+			// console.log(can.data(can.$(el.ancestor('.todo')), 'todo'));
+			// var todo = can.data(can.$(el.ancestor('.todo')), 'todo').destroy();
+			el.ancestor('.todo').destroy();
 		},
 			
 			
