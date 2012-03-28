@@ -271,8 +271,8 @@
         if (item instanceof Y.NodeList) {
             item = item.item(0);
         }
-        if (item instanceof Y.Node) {
-            item = item._node;
+        if (item.getDOMNode) {
+            item = item.getDOMNode();
         }
         if (item.nodeName) {
             item = Y.Node(item);
@@ -281,11 +281,12 @@
                     ev.preventDefault();
                 });
             }
-            realTrigger(item._node, event, {});
+            realTrigger(item.getDOMNode(), event, {});
         } else {
             if (typeof event === "string") {
                 event = {type:event};
             }
+            event.target = event.target || item;
             event.data = args;
             can.dispatch.call(item, event);
         }
@@ -325,13 +326,13 @@
             n.fireEvent(ev);
         }
         catch (er) {
-            var evdata = mix({type:e, target:n, faux:true, _stopper:function () {
+            var evdata = can.extend({type:e, target:n, faux:true, _stopper:function () {
                 stop = this.cancelBubble;
             }}, a);
-            isfn(n[ev]) && n[ev](evdata);
+            can.isFunction(n[ev]) && n[ev](evdata);
             while (!stop && n !== document && n.parentNode) {
                 n = n.parentNode;
-                isfn(n[ev]) && n[ev](evdata);
+                can.isFunction(n[ev]) && n[ev](evdata);
             }
         }
     };
@@ -445,17 +446,17 @@
         return this;
     }});;
 
-    var undHash = /_|-/, colons = /==/, words = /([A-Z]+)([A-Z][a-z])/g, lowUp = /([a-z\d])([A-Z])/g, dash = /([a-z\d])([A-Z])/g, replacer = /\{([^\}]+)\}/g, quote = /"/g, singleQuote = /'/g, getNext = function (current, nextPart, add) {
-        return nextPart in current ? current[nextPart] : (add && (current[nextPart] = {}));
+    var undHash = /_|-/, colons = /==/, words = /([A-Z]+)([A-Z][a-z])/g, lowUp = /([a-z\d])([A-Z])/g, dash = /([a-z\d])([A-Z])/g, replacer = /\{([^\}]+)\}/g, quote = /"/g, singleQuote = /'/g, getNext = function (obj, prop, add) {
+        return prop in obj ? obj[prop] : (add && (obj[prop] = {}));
     }, isContainer = function (current) {
         return /^f|^o/.test(typeof current);
-    }, getObject;
+    };
     can.extend(can, {esc:function (content) {
         return ("" + content).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(quote, "&#34;").replace(singleQuote, "&#39;");
-    }, getObject:getObject = function (name, roots, add) {
-        var parts = name ? name.split(".") : [], length = parts.length, current, ret, i, r = 0;
+    }, getObject:function (name, roots, add) {
+        var parts = name ? name.split(".") : [], length = parts.length, current, r = 0, ret, i;
         roots = can.isArray(roots) ? roots : [roots || window];
-        if (length == 0) {
+        if (!length) {
             return roots[0];
         }
         while (current = roots[r++]) {
@@ -476,10 +477,10 @@
         return s.charAt(0).toUpperCase() + s.slice(1);
     }, underscore:function (s) {
         return s.replace(colons, "/").replace(words, "$1_$2").replace(lowUp, "$1_$2").replace(dash, "_").toLowerCase();
-    }, sub:function (s, data, remove) {
-        var obs = [], remove = typeof remove == "boolean" ? !remove : remove;
-        obs.push(s.replace(replacer, function (whole, inside) {
-            var ob = getObject(inside, data, remove);
+    }, sub:function (str, data, remove) {
+        var obs = [];
+        obs.push(str.replace(replacer, function (whole, inside) {
+            var ob = can.getObject(inside, data, remove);
             if (isContainer(ob)) {
                 obs.push(ob);
                 return "";
@@ -737,6 +738,9 @@
         return attr ? this[attr] : this;
     }, ___set:function (attr, val) {
         this[attr] = val;
+        if (+attr >= this.length) {
+            this.length = (+attr + 1);
+        }
     }, serialize:function () {
         return serialize(this, "serialize", []);
     }, splice:function (index, howMany) {
@@ -798,16 +802,8 @@
                     args[i] = hookupBubble(val, "*", this);
                 }
             }
-            if (args.length == 1 && this.comparator) {
-                var index = this.sortedIndex(args[0]);
-                this.splice(index, 0, args[0]);
-                return this.length;
-            }
             var res = [][name].apply(this, args);
-            if (this.comparator && args.length > 1) {
-                this.sort(null, true);
-                batchTrigger(this, "reset", [args]);
-            } else {
+            if (!this.comparator || !args.length) {
                 batchTrigger(this, "change", ["" + len, "add", args, undefined]);
             }
             return res;

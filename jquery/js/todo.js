@@ -135,7 +135,7 @@ can.Control('Todos',{
 	},
 	
 	// Listen for a removed Todo
-	'.todo .destroy click' : function(el){;
+	'.todo .destroy click' : function(el){
 		el.closest('.view').data('todo').destroy();
 	},
 	
@@ -179,7 +179,7 @@ can.Control('Todos',{
 // Initialize the app
 Todo.findAll({}, function(todos) {
 	new Todos('#todoapp', {
-		todos: todos
+		todos: todos.sort()
 	});
 });
 

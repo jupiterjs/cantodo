@@ -1,6 +1,6 @@
 (function() {
 
-YUI().use('calendar', 'json', 'node', function(Y) {
+YUI().use('json', 'node', function(Y) {
 
 // Basic Todo entry model
 // { text: 'todo', complete: false }
@@ -137,7 +137,7 @@ can.Control('Todos',{
 	},
 	
 	// Listen for a removed Todo
-	'.todo .destroy click' : function(el){;
+	'.todo .destroy click' : function(el){
 		el.ancestor('.view').getData('todo').destroy();
 	},
 	
@@ -181,7 +181,7 @@ can.Control('Todos',{
 // Initialize the app
 Todo.findAll({}, function(todos) {
 	new Todos('#todoapp', {
-		todos: todos
+		todos: todos.sort()
 	});
 });
 
