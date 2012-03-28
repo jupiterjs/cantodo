@@ -116,10 +116,10 @@ can.Control('Todos',{
 	// Listen for an edited Todo
 	'.todo .edit keyup' : function(el, ev){
 		if(ev.keyCode == 13){
-			this['.todo .edit blur'].apply(this, arguments);
+			this['.todo .edit focusout'].apply(this, arguments);
 		}
 	},
-	'.todo .edit blur' : function(el, ev) {
+	'.todo .edit focusout' : function(el, ev) {
 		el.closest('.todo').children('.view').data('todo')
 			.attr({
 				editing: false,
