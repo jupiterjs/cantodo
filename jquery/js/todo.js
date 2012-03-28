@@ -59,7 +59,7 @@ can.Model('Todo', {
 		this.localStore(function(todos){
 			for (var i = 0; i < todos.length; i++) {
 				if (todos[i].id === id) {
-					var todo = todos[id];
+					var todo = todos[i];
 					break;
 				}
 			}
@@ -80,9 +80,6 @@ can.Control('Todos',{
 
 	// Initialize the Todos list
 	init : function(){
-		// Clear the new todo field
-		$('#new-todo').val('').focus();
-		
 		// Initialize statistics
 		this['{todos} change']();
 	
@@ -91,6 +88,9 @@ can.Control('Todos',{
 			stats: this.stats,
 			todos: this.options.todos
 		}));
+		
+		// Clear the new todo field
+		$('#new-todo').val('').focus();
 	},
 		
 	// Listen for when a new Todo has been entered
@@ -112,7 +112,7 @@ can.Control('Todos',{
 	
 	// Listen for editing a Todo
 	'.todo dblclick' : function(el) {
-		el.children('.view').data('todo').attr('editing', true).save(function() {
+		el.data('todo').attr('editing', true).save(function() {
 			el.children('.edit').focus();
 		});
 	},
@@ -124,7 +124,7 @@ can.Control('Todos',{
 		}
 	},
 	'.todo .edit focusout' : function(el, ev) {
-		el.closest('.todo').children('.view').data('todo')
+		el.closest('.todo').data('todo')
 			.attr({
 				editing: false,
 				text: el.val()
@@ -133,14 +133,14 @@ can.Control('Todos',{
 	
 	// Listen for the toggled completion of a Todo
 	'.todo .toggle change' : function(el, ev) {
-		el.closest('.view').data('todo')
+		el.closest('.todo').data('todo')
 			.attr('complete', el.is(':checked'))
 			.save();
 	},
 	
 	// Listen for a removed Todo
 	'.todo .destroy click' : function(el){
-		el.closest('.view').data('todo').destroy();
+		el.closest('.todo').data('todo').destroy();
 	},
 	
 	// Listen for toggle all completed Todos
@@ -176,6 +176,8 @@ can.Control('Todos',{
 			remaining: length - completed,
 			allComplete: length === completed
 		});
+		
+		$('#toggle-all').prop('checked', length === completed);
 	}
 
 })

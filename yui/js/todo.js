@@ -61,7 +61,7 @@ can.Model('Todo', {
 		this.localStore(function(todos){
 			for (var i = 0; i < todos.length; i++) {
 				if (todos[i].id === id) {
-					var todo = todos[id];
+					var todo = todos[i];
 					break;
 				}
 			}
@@ -82,9 +82,6 @@ can.Control('Todos',{
 
 	// Initialize the Todos list
 	init : function(){
-		// Clear the new todo field
-		Y.one('#new-todo').set('value','').focus();
-		
 		// Initialize statistics
 		this['{todos} change']();
 	
@@ -93,6 +90,9 @@ can.Control('Todos',{
 			stats: this.stats,
 			todos: this.options.todos
 		}));
+		
+		// Clear the new todo field
+		Y.one('#new-todo').set('value','').focus();
 	},
 		
 	// Listen for when a new Todo has been entered
@@ -114,7 +114,7 @@ can.Control('Todos',{
 	
 	// Listen for editing a Todo
 	'.todo dblclick' : function(el) {
-		el.one('.view').getData('todo').attr('editing', true).save(function() {
+		el.getData('todo').attr('editing', true).save(function() {
 			el.one('.edit').focus();
 		});
 	},
@@ -126,7 +126,7 @@ can.Control('Todos',{
 		}
 	},
 	'.todo .edit focusout' : function(el, ev) {
-		el.ancestor('.todo').one('.view').getData('todo')
+		el.ancestor('.todo').getData('todo')
 			.attr({
 				editing: false,
 				text: el.get('value')
@@ -135,14 +135,14 @@ can.Control('Todos',{
 	
 	// Listen for the toggled completion of a Todo
 	'.todo .toggle change' : function(el, ev) {
-		el.ancestor('.view').getData('todo')
+		el.ancestor('.todo').getData('todo')
 			.attr('complete', el.get('checked'))
 			.save();
 	},
 	
 	// Listen for a removed Todo
 	'.todo .destroy click' : function(el){
-		el.ancestor('.view').getData('todo').destroy();
+		el.ancestor('.todo').getData('todo').destroy();
 	},
 	
 	// Listen for toggle all completed Todos
@@ -178,6 +178,8 @@ can.Control('Todos',{
 			remaining: length - completed,
 			allComplete: length === completed
 		});
+		
+		Y.all('#toggle-all').set('checked', length === completed);
 	}
 
 })
