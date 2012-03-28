@@ -1,6 +1,6 @@
 (function() {
 
-YUI().use('json', 'node', function(Y) {
+YUI().use('calendar', 'json', 'node', function(Y) {
 
 // Basic Todo entry model
 // { text: 'todo', complete: false }
@@ -69,6 +69,28 @@ can.Model('Todo', {
 		});
 		def.resolve({});
 		return def
+	},
+		
+	formatDate: function(raw){
+		if(raw === null || raw === "") {
+			return "";
+		}
+
+		var rightNow = new Date(),
+			today = new Date(rightNow.getFullYear(), rightNow.getMonth(), rightNow.getDate()),
+			date = new Date(raw),
+			compare = new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+			difference = (today - compare) / (1000*60*60*24);
+		
+		if(difference === -1) {
+			return "Tomorrow";
+		} else if(difference === 0) {
+			return "Today";
+		} else if(difference === 1) {
+			return "Yesterday";
+		} else {
+			return (date.getMonth()+1) + '/' + (date.getDate()) + '/' + date.getFullYear();
+		}
 	}
 	
 },{});
@@ -180,6 +202,35 @@ can.Control('Todos',{
 		});
 		
 		Y.all('#toggle-all').set('checked', length === completed);
+	},
+	
+	// Listen for a change due date request
+	'.todo .due-date click' : function(el, e){
+		// Cache the todo
+		var todo = el.ancestor('.todo').getData('todo');
+		
+		// Display the calendar
+		var cal = this.options.calendar;
+		Y.one('#calendar').setStyle('top', el.getY() + 'px');
+		cal.deselectDates();
+		cal.selectDates(todo.dueDate || []);
+		this._todo = todo;
+		cal.show();
+	},
+	
+	// Listen for a clear due date
+	'.todo .clear-date click' : function(el, e){
+		el.ancestor('.todo').getData('todo').attr('dueDate', null).save();
+	},
+	
+	// Date change for Todo	
+	'{calendar} selectionChange': function(calendar, ev){
+		// Update the todo if one exists
+		if (this._todo) {
+			this.options.calendar.hide();
+			this._todo.attr('dueDate', ev.newSelection[0] || null).save();
+			delete this._todo;
+		}
 	}
 
 })
@@ -187,7 +238,16 @@ can.Control('Todos',{
 // Initialize the app
 Todo.findAll({}, function(todos) {
 	new Todos('#todoapp', {
-		todos: todos
+		todos: todos,
+		calendar: new Y.Calendar({
+	    contentBox: "#calendar",
+	    height: '200px',
+	    width: '200px',
+			selectionMode: 'single',
+	    showPrevMonth: true,
+	    showNextMonth: true,
+			visible: false
+		}).render()
 	});
 });
 

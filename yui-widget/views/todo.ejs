@@ -10,7 +10,10 @@
 				<div class="view">
 					<input class="toggle" type="checkbox" <%= todo.attr("complete") ? "checked" : "" %>>
 					<label><%= todo.attr("text") %></label>
-					<a class="destroy"></a>
+					<span class="date"><%= Todo.formatDate(todo.attr("dueDate")) %></span>
+					<a class="destroy icon-remove-sign"></a>
+					<a class="due-date icon-time"></a>
+					<a class="clear-date icon-ban-circle <%= todo.attr("dueDate") != null ? "show" : "" %>"></a>
 				</div>
 				<input class="edit" type="text" value="<%= todo.attr("text") %>">
 			</li>
