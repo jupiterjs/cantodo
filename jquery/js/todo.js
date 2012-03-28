@@ -7,12 +7,12 @@ can.Model('Todo', {
 	// Implement local storage handling
 	localStore: function(cb){
 		var name = 'todos-canjs-jquery',
-			data = JSON.parse( window.localStorage[name] || (window.localStorage[name] = '{}') ),
+			data = JSON.parse( window.localStorage[name] || (window.localStorage[name] = '[]') ),
 			res = cb.call(this, data);
 		if(res !== false){
-			for (var id in data) {
-				delete data[id].editing;
-			}
+			can.each(data, function(i, todo) {
+				delete todo.editing;
+			});
 			window.localStorage[name] = JSON.stringify(data);
 		}
 	},
@@ -20,10 +20,11 @@ can.Model('Todo', {
 	findAll: function(params, success){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
-			var instances = [];
-			for(var id in todos){
-				instances.push( new this(todos[id]) )
-			}
+			var instances = [],
+				self = this;
+			can.each(todos, function(i, todo) {
+				instances.push(new self(todo));
+			});
 			def.resolve({data: instances});
 		})
 		return def;
@@ -32,7 +33,12 @@ can.Model('Todo', {
 	destroy: function(id, success){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
-			delete todos[id];
+			for (var i = 0; i < todos.length; i++) {
+				if (todos[i].id === id) {
+					todos.splice(i, 1);
+					break;
+				}
+			}
 			def.resolve({});
 		});
 		return def
@@ -42,7 +48,7 @@ can.Model('Todo', {
 		var def = new can.Deferred();
 		this.localStore(function(todos){
 			attrs.id = attrs.id || parseInt(100000 *Math.random());
-			todos[attrs.id] = attrs;
+			todos.push(attrs);
 		});
 		def.resolve({id : attrs.id});
 		return def
@@ -51,7 +57,12 @@ can.Model('Todo', {
 	update: function(id, attrs, success){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
-			var todo = todos[id];
+			for (var i = 0; i < todos.length; i++) {
+				if (todos[i].id === id) {
+					var todo = todos[id];
+					break;
+				}
+			}
 			can.extend(todo, attrs);
 		});
 		def.resolve({});
@@ -60,16 +71,9 @@ can.Model('Todo', {
 	
 },{});
 
-// List container for Todos, adds utility methods
+// List for Todos
 can.Model.List('Todo.List',{
-	
-	// Sorts by text content
-	sort: function() {
-		return [].sort.call(this, function(a,b) {
-			return (a.text > b.text && 1) || (a.text < b.text && -1) || 0;
-		});
-	}
-	
+	// Utility methods go here
 });
 
 can.Control('Todos',{
@@ -179,7 +183,7 @@ can.Control('Todos',{
 // Initialize the app
 Todo.findAll({}, function(todos) {
 	new Todos('#todoapp', {
-		todos: todos.sort()
+		todos: todos
 	});
 });
 
