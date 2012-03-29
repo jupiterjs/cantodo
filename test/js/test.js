@@ -79,10 +79,7 @@ steal('funcunit', 'funcunit/qunit').then(function() {
 		
 		helpers.add(1, 'new todo');
 		S('#todo-list .todo:nth-child(1)').dblclick();
-		S('#todo-list .todo:nth-child(1) .edit').type('more edits');
-		S('#todo-list .todo:nth-child(1) .edit').then(function(el) {
-			el[0].blur();
-		});
+		S('#todo-list .todo:nth-child(1) .edit').type('more edits\t');
 		S('#todo-list .todo:nth-child(1) label').text('more edits', 'edited a todo (blur)');
 	});
 		
