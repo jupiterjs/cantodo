@@ -157,7 +157,7 @@ can.Control('Todos',{
 	// Listen for editing a Todo
 	'.todo dblclick' : function(el) {
 		el.getData('todo').attr('editing', true).save(function() {
-			el.one('.edit').focus();
+			el.one('.edit').focus().select();
 		});
 	},
 	
