@@ -2,6 +2,13 @@
 
 YUI().use('calendar', 'json', 'node', function(Y) {
 
+// Calculates the difference between two dates by number of days.
+var difference = function(date1, date2) {
+	date1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+	date2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+	return (date1 - date2) / (1000*60*60*24);
+};
+
 // Basic Todo entry model
 // { text: 'todo', complete: false }
 can.Model('Todo', {
@@ -72,25 +79,26 @@ can.Model('Todo', {
 	},
 		
 	formatDate: function(raw){
-		if(raw === null || raw === "") {
-			return "";
+		if (!raw) {
+			return '';
 		}
 
-		var rightNow = new Date(),
-			today = new Date(rightNow.getFullYear(), rightNow.getMonth(), rightNow.getDate()),
-			date = new Date(raw),
-			compare = new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-			difference = (today - compare) / (1000*60*60*24);
+		var date = new Date(raw),
+			diff = difference(new Date(), date);
 		
-		if(difference === -1) {
-			return "Tomorrow";
-		} else if(difference === 0) {
-			return "Today";
-		} else if(difference === 1) {
-			return "Yesterday";
+		if(diff === -1) {
+			return 'Tomorrow';
+		} else if(diff === 0) {
+			return 'Today';
+		} else if(diff === 1) {
+			return 'Yesterday';
 		} else {
 			return (date.getMonth()+1) + '/' + (date.getDate()) + '/' + date.getFullYear();
 		}
+	},
+	
+	isLate: function(raw) {
+		return !raw ? false : difference(new Date(), new Date(raw)) > 0;
 	}
 	
 },{});
@@ -115,6 +123,14 @@ can.Control('Todos',{
 		
 		// Clear the new todo field
 		Y.one('#new-todo').set('value','').focus();
+		
+		// Hide the calendar on page click
+		var cal = this.options.calendar;
+		Y.one(document).on('click', function(ev) {
+			if (!ev.target.hasClass('due-date') && !ev.target.ancestor('#calendar')) {
+				cal.hide();
+			}
+		});
 	},
 		
 	// Listen for when a new Todo has been entered
@@ -205,7 +221,9 @@ can.Control('Todos',{
 	},
 	
 	// Listen for a change due date request
-	'.todo .due-date click' : function(el, e){
+	'.todo .due-date click' : function(el, ev){
+		ev.preventDefault();
+		
 		// Cache the todo
 		var todo = el.ancestor('.todo').getData('todo');
 		

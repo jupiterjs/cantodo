@@ -13,6 +13,10 @@ body {
 	font-size: 80%;
 }
 
+#todo-list li .date.late {
+  color: #900;
+}
+
 #todo-list li .destroy {
 	background: none;
 }
