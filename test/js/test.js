@@ -27,7 +27,7 @@ steal('funcunit', 'funcunit/qunit').then(function() {
 	});
 	
 	// Helpers for easily modifying todos
-	var helpers = {
+	var helpers = window.helpers = {
 		add: function(nthChild, text) {
 			S('#new-todo').type(text + '\r');
 			S('#todo-list .todo:nth-child('+nthChild+') label').text(text, 'added a todo');
