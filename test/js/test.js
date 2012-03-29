@@ -1,5 +1,7 @@
 steal('funcunit', 'funcunit/qunit').then(function() {
 	
+	QUnit.config.testTimeout = 300000;
+		
 	// Handle multiple library testing
 	var oldmodule = window.module;
 	window.module = function(name, testEnvironment) {
