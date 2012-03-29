@@ -76,9 +76,12 @@ can.Model('Todo', {
 		});
 		def.resolve({});
 		return def
-	},
+	}
+	
+},{
 		
-	formatDate: function(raw){
+	prettyDate: function(raw){
+		var raw = this.attr('dueDate');
 		if (!raw) {
 			return '';
 		}
@@ -98,10 +101,11 @@ can.Model('Todo', {
 	},
 	
 	isLate: function(raw) {
+		var raw = this.attr('dueDate');
 		return !raw ? false : difference(new Date(), new Date(raw)) > 0;
 	}
-	
-},{});
+
+});
 
 // List for Todos
 can.Model.List('Todo.List',{
