@@ -6,7 +6,7 @@ This project contains a collection of [TodoMVC](https://github.com/addyosmani/to
 
 - `jquery`: CanJS with jQuery
 - `dojo`: CanJS with Dojo
-- `dojo-widget`: CanJS with Dojo (includes a Dojo widget binding example
+- `dojo-widget`: CanJS with Dojo (includes a Dojo widget binding example)
 - `yui`: CanJS with YUI
 - `yui-widget`: CanJS with YUI (includes a YUI widget binding example)
 - `zepto`: CanJS with Zepto
