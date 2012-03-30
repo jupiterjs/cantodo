@@ -149,7 +149,7 @@ can.Control('Todos',{
 	},
 	
 	// Listen for the toggled completion of a Todo
-	'.todo .toggle change' : function(el, ev) {
+	'.todo .toggle click' : function(el, ev) {
 		el.ancestor('.todo').getData('todo')
 			.attr('complete', el.get('checked'))
 			.save();
@@ -161,7 +161,7 @@ can.Control('Todos',{
 	},
 	
 	// Listen for toggle all completed Todos
-	'#toggle-all change' : function(el, ev) {
+	'#toggle-all click' : function(el, ev) {
 		var toggle = el.get('checked');
 		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
