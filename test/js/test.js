@@ -1,11 +1,12 @@
 steal('funcunit', 'funcunit/qunit').then(function() {
 	
+	var library = TODOLIB;
 	QUnit.config.testTimeout = 300000;
 		
 	// Handle multiple library testing
-	var oldmodule = window.module;
+	window.oldmodule = window.oldmodule || window.module;
 	window.module = function(name, testEnvironment) {
-		oldmodule(TODOLIB + '/' + name, testEnvironment);
+		oldmodule(library + '/' + name, testEnvironment);
 	};
 		
 	// Helpers for easily modifying todos
@@ -53,11 +54,11 @@ steal('funcunit', 'funcunit/qunit').then(function() {
 	
 	module('js/todo.js', {
 		setup: function() {
-			S.open('../' + TODOLIB);
+			S.open('../' + library);
 			S('#todoapp').then(function(el) {
 				var doc = el[0].ownerDocument,
 					win = doc.defaultView || doc.parentWindow;
-				win.localStorage.removeItem('todos-canjs-' + TODOLIB);
+				win.localStorage.removeItem('todos-canjs-' + library);
 			});
 			helpers.reload();
 		},
@@ -65,7 +66,7 @@ steal('funcunit', 'funcunit/qunit').then(function() {
 			S('#todoapp').then(function(el) {
 				var doc = el[0].ownerDocument,
 					win = doc.defaultView || doc.parentWindow;
-				win.localStorage.removeItem('todos-canjs-' + TODOLIB);
+				win.localStorage.removeItem('todos-canjs-' + library);
 			});
 		}
 	});
