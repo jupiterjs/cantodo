@@ -5,10 +5,28 @@ require({
     	main: "can.dojo-edge"
 	}]
 })
-require(['can/dojo', "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/dom-geometry", "dojo/NodeList-manipulate", "dijit/CalendarLite", "dijit/place", "dijit/focus", "dojo/date",  "dojo/domReady!"], function(can, dom, domConstruct, domAttr){
+require(['can/dojo', 
+	"dojo/dom", 
+	"dojo/dom-construct", 
+	"dojo/dom-attr", 
+	"dojo/dom-geometry", 
+	"dojo/NodeList-manipulate", 
+	"dijit/CalendarLite", 
+	"dijit/place", 
+	"dijit/focus", 
+	"dojo/domReady!"], 
+function(can, dom, domConstruct, domAttr){
+
+// Calculates the difference between two dates by number of days.
+var difference = function(date1, date2) {
+	date1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+	date2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+	return (date1 - date2) / (1000*60*60*24);
+};
+
 // Basic Todo entry model
 // { text: 'todo', complete: false }
-can.Model('Todo', {
+Todo = can.Model({
 	
 	// Implement local storage handling
 	localStore: function(cb){
@@ -23,7 +41,7 @@ can.Model('Todo', {
 		}
 	},
 	
-	findAll: function(params, success){
+	findAll: function(params){
 		var def = new dojo.Deferred();
 		this.localStore(function(todos){
 			var instances = [],
@@ -36,7 +54,7 @@ can.Model('Todo', {
 		return def;
 	},
 	
-	destroy: function(id, success){
+	destroy: function(id){
 		var def = new dojo.Deferred();
 		this.localStore(function(todos){
 			for (var i = 0; i < todos.length; i++) {
@@ -50,7 +68,7 @@ can.Model('Todo', {
 		return def
 	},
 	
-	create: function(attrs, success){
+	create: function(attrs){
 		var def = new dojo.Deferred();
 		this.localStore(function(todos){
 			attrs.id = attrs.id || parseInt(100000 *Math.random());
@@ -60,7 +78,7 @@ can.Model('Todo', {
 		return def
 	},
 	
-	update: function(id, attrs, success){
+	update: function(id, attrs){
 		var def = new dojo.Deferred();
 		this.localStore(function(todos){
 			for (var i = 0; i < todos.length; i++) {
@@ -82,31 +100,29 @@ can.Model('Todo', {
 		if (!raw) {
 			return '';
 		}
-		//TODO: More specifics on the date for calendar weirdness
+
 		var date = new Date(raw),
-			diff = dojo.date.difference(new Date(), date);
+			diff = difference(new Date(), date);
 		
 		if(diff === -1) {
-			return 'Yesterday';
+			return 'Tomorrow';
 		} else if(diff === 0) {
 			return 'Today';
 		} else if(diff === 1) {
-			return 'Tomorrow';
+			return 'Yesterday';
 		} else {
 			return (date.getMonth()+1) + '/' + (date.getDate()) + '/' + date.getFullYear();
 		}
 	},
 	
 	isLate: function(raw) {
-		//TODO: More specifics on the date for calendar weirdness
 		var raw = this.attr('dueDate');
-		console.log('isLate', dojo.date.difference(new Date(), new Date(raw)))
-		return !raw ? false : dojo.date.difference(new Date(), new Date(raw)) < 0;
+		return !raw ? false : difference(new Date(), new Date(raw)) > 0;
 	}
 });
 
 // List for Todos
-can.Model.List('Todo.List',{
+Todo.List = can.Model.List({
 	
 	completed: function() {
 		// Ensure this triggers on length change
@@ -129,7 +145,7 @@ can.Model.List('Todo.List',{
 	
 });
 
-can.Control('Todos',{
+var Todos = can.Control('Todos',{
 
 	// Initialize the Todos list
 	init : function(){
@@ -174,19 +190,23 @@ can.Control('Todos',{
 		});
 	},
 
-	// Listen for an edited Todo
-	'.todo .edit keyup' : function(el, ev){
-		if(ev.keyCode == 13){
-			this['.todo .edit focusout'].apply(this, arguments);
-		}
-	},
-
-	'.todo .edit focusout' : function(el, ev) {
+	// Update a todo
+	updateTodo: function(el) {
 		can.data(el.closest('.todo'), 'todo')
 			.attr({
 				editing: false,
 				text: el.val()
 			}).save();
+	},
+
+	// Listen for an edited Todo
+	'.todo .edit keyup' : function(el, ev){
+		if(ev.keyCode == 13){
+			this.updateTodo(el);
+		}
+	},
+	'.todo .edit focusout' : function(el, ev) {
+		this.updateTodo(el);
 	},
 
 	// Listen for the toggled completion of a Todo

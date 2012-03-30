@@ -5,9 +5,11 @@ This project contains a collection of [TodoMVC](https://github.com/addyosmani/to
 ### Demos
 
 - `jquery`: CanJS with jQuery
+- `dojo`: CanJS with Dojo
+- `dojo-widget`: CanJS with Dojo (includes a Dojo widget binding example)
 - `yui`: CanJS with YUI
 - `yui-widget`: CanJS with YUI (includes a YUI widget binding example)
-- `dojo`: CanJS with Dojo
+- `zepto`: CanJS with Zepto
 
 ### Testing
 
@@ -18,7 +20,8 @@ Next, open the corresponding test page:
 
 - `all frameworks`: `test/index.html`
 - `jquery`: `test/jquery.html`
+- `dojo`: `test/dojo.html`
+- `dojo-widget`: `test/dojo-widget.html`
 - `yui`: `test/yui.html`
 - `yui-widget`: `test/yui-widget.html`
-- `dojo`: `test/dojo.html`
-
+- `zepto`: `test/zepto.html`
