@@ -7,6 +7,7 @@ This project contains a collection of [TodoMVC](https://github.com/addyosmani/to
 - `jquery`: CanJS with jQuery
 - `yui`: CanJS with YUI
 - `yui-widget`: CanJS with YUI (includes a YUI widget binding example)
+- `dojo`: CanJS with Dojo
 
 ### Testing
 
@@ -19,4 +20,5 @@ Next, open the corresponding test page:
 - `jquery`: `test/jquery.html`
 - `yui`: `test/yui.html`
 - `yui-widget`: `test/yui-widget.html`
+- `dojo`: `test/dojo.html`
 

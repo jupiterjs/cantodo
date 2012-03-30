@@ -1,5 +1,5 @@
-<section id="main" class="<%= stats.attr("total") > 0 ? "show" : "" %>">
-	<input id="toggle-all" type="checkbox" <%= stats.attr("allComplete") ? "checked" : "" %>>
+<section id="main" class="<%= todos.attr("length") > 0 ? "show" : "" %>">
+	<input id="toggle-all" type="checkbox" <%= todos.allComplete() ? "checked" : "" %>>
 	<label for="toggle-all">Mark all as complete</label>
 	<ul id="todo-list">
 		<% list(todos, function( todo ) { %>
@@ -17,9 +17,9 @@
 		<% }) %>
 	</ul>
 </section>
-<footer id="stats" class="<%= stats.attr("total") > 0 ? "show" : "" %>">
-	<a id="clear-completed">Clear <%= stats.attr("completed") %> 
-		completed item<%= stats.attr("completed") == 1 ? "" : "s" %></a>
-	<div id="todo-count"><span><%= stats.attr("remaining") %></span> 
-		item<%= stats.attr("remaining") == 1 ? "" : "s" %> left</div>
+<footer id="stats" class="<%= todos.attr("length") > 0 ? "show" : "" %>">
+	<a id="clear-completed">Clear <%= todos.completed() %> 
+		completed item<%= todos.completed() == 1 ? "" : "s" %></a>
+	<div id="todo-count"><span><%= todos.remaining() %></span> 
+		item<%= todos.remaining() == 1 ? "" : "s" %> left</div>
 </footer>

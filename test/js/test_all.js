@@ -1,6 +1,8 @@
 steal()
 .then(function() { TODOLIB = 'jquery'; })
 .then('test.js?jquery')
+.then(function() { TODOLIB = 'dojo'; })
+.then('test.js?dojo')
 .then(function() { TODOLIB = 'yui'; })
 .then('test.js?yui')
 .then(function() { TODOLIB = 'yui-widget'; })

@@ -79,31 +79,45 @@ can.Model('Todo', {
 
 // List for Todos
 can.Model.List('Todo.List',{
-	// Utility methods go here
+	
+	completed: function() {
+		// Ensure this triggers on length change
+		this.attr('length');
+		
+		var completed = 0;
+		this.each(function(i, todo) {
+			completed += todo.attr('complete') ? 1 : 0
+		});
+		return completed;
+	},
+	
+	remaining: function() {
+		return this.attr('length') - this.completed();
+	},
+	
+	allComplete: function() {
+		return this.attr('length') === this.completed();
+	}
+	
 });
 
 can.Control('Todos',{
 
 	// Initialize the Todos list
 	init : function(){
-		// Initialize statistics
-		this['{todos} change']();
-	
 		// Render the Todos
 		this.element.append(can.view('views/todo', {
-			stats: this.stats,
 			todos: this.options.todos
 		}));
 		
 		// Clear the new todo field
-		//TODO: this doesn't focus the text box
-		dijit.focus(dojo.byId('#new-todo'));
+		dijit.focus(dojo.byId('new-todo'));
 	},
 
 	// Listen for when a new Todo has been entered
 	'#new-todo keyup' : function(el, ev){
 		if(ev.keyCode == 13){
-			var todo = new Todo({
+			new Todo({
 				text : el.val(),
 				complete : false
 			}).save(function() {
@@ -120,7 +134,7 @@ can.Control('Todos',{
 	// Listen for editing a Todo
 	'.todo dblclick' : function(el) {
 		can.data(el, 'todo').attr('editing', true).save(function(){
-			dijit.focus(el.children('.edit'));
+			dijit.focus(el.children('.edit')[0].select());
 		});
 	},
 
@@ -140,7 +154,7 @@ can.Control('Todos',{
 	},
 
 	// Listen for the toggled completion of a Todo
-	'.todo .toggle change' : function(el, ev) {
+	'.todo .toggle click' : function(el, ev) {
 		can.data(el.closest('.todo'), 'todo')
 			.attr('complete', el.attr('checked')[0])
 			.save();
@@ -152,12 +166,11 @@ can.Control('Todos',{
 	},
 
 	// Listen for toggle all completed Todos
-	'#toggle-all change' : function(el, ev) {
-		var toggle = !!this.stats.attr('remaining');
+	'#toggle-all click' : function(el, ev) {
+		var toggle = el.attr('checked')[0];
 		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
 		});
-		el.attr('checked', toggle);
 		dojo.query('#todo-list .todo .toggle').attr('checked', toggle);
 	},
 	
@@ -170,23 +183,7 @@ can.Control('Todos',{
 
 	// Update statistics on change in the Todo list
 	'{todos} change' : function(){
-		var completed = 0,
-			length = this.options.todos.length;
-
-		can.each(this.options.todos, function(i, todo) {
-			completed += todo.complete ? 1 : 0;
-		});
-		
-		// Update the stats
-		this.stats = this.stats || new can.Observe();
-		this.stats.attr({
-			completed: completed,
-			total: length,
-			remaining: length - completed,
-			allComplete: length === completed
-		});
-		
-		if(dojo.query('#toggle-all')) dojo.query('#toggle-all').attr('checked', length === completed);
+		dojo.query('#toggle-all').attr('checked', this.options.todos.allComplete());
 	}
 
 })
