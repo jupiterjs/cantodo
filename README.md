@@ -15,6 +15,7 @@ Unit tests for each demo are included in the `test` directory.
 To run the unit tests, first update the submodules: `git submodule update --init --recursive`  
 Next, open the corresponding test page:
 
+- `all frameworks`: `test/index.html`
 - `jquery`: `test/jquery.html`
 - `yui`: `test/yui.html`
 - `yui-widget`: `test/yui-widget.html`
