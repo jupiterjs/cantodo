@@ -5,14 +5,14 @@ require({
     	main: "can.dojo-edge"
 	}]
 })
-require(['can/dojo', "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/NodeList-manipulate", "dijit/focus",  "dojo/domReady!"], function(can, dom, domConstruct, domAttr){
+require(['can/dojo', "dojo/dom", "dojo/dom-construct", "dojo/dom-attr", "dojo/dom-geometry", "dojo/NodeList-manipulate", "dijit/CalendarLite", "dijit/place", "dijit/focus", "dojo/date",  "dojo/domReady!"], function(can, dom, domConstruct, domAttr){
 // Basic Todo entry model
 // { text: 'todo', complete: false }
 can.Model('Todo', {
 	
 	// Implement local storage handling
 	localStore: function(cb){
-		var name = 'todos-canjs-dojo',
+		var name = 'todos-canjs-dojo-widget',
 			data = dojo.fromJson( window.localStorage[name] || (window.localStorage[name] = '[]') ),
 			res = cb.call(this, data);
 		if(res !== false){
@@ -75,7 +75,35 @@ can.Model('Todo', {
 		return def
 	}
 	
-},{});
+},{
+
+	prettyDate: function(raw){
+		var raw = this.attr('dueDate');
+		if (!raw) {
+			return '';
+		}
+		//TODO: More specifics on the date for calendar weirdness
+		var date = new Date(raw),
+			diff = dojo.date.difference(new Date(), date);
+		
+		if(diff === -1) {
+			return 'Yesterday';
+		} else if(diff === 0) {
+			return 'Today';
+		} else if(diff === 1) {
+			return 'Tomorrow';
+		} else {
+			return (date.getMonth()+1) + '/' + (date.getDate()) + '/' + date.getFullYear();
+		}
+	},
+	
+	isLate: function(raw) {
+		//TODO: More specifics on the date for calendar weirdness
+		var raw = this.attr('dueDate');
+		console.log('isLate', dojo.date.difference(new Date(), new Date(raw)))
+		return !raw ? false : dojo.date.difference(new Date(), new Date(raw)) < 0;
+	}
+});
 
 // List for Todos
 can.Model.List('Todo.List',{
@@ -112,6 +140,14 @@ can.Control('Todos',{
 		
 		// Clear the new todo field
 		dijit.focus(dojo.byId('new-todo'));
+
+		// Hide the calendar on page click
+		var cal = this.options.calendar;
+		dojo.query(document).on('click', function(ev) {
+			if (!dojo.hasClass(ev.target, 'due-date') && !dojo.query(ev.target).closest('#calendar').length) {
+				dojo.query(cal.domNode).style('visibility', 'hidden');
+			}
+		})
 	},
 
 	// Listen for when a new Todo has been entered
@@ -184,6 +220,36 @@ can.Control('Todos',{
 	// Update statistics on change in the Todo list
 	'{todos} change' : function(){
 		dojo.query('#toggle-all').attr('checked', this.options.todos.allComplete());
+	},
+
+	// Listen for a change due date request
+	'.todo .due-date click' : function(el, ev){
+		ev.preventDefault();
+
+		// Cache the todo
+		var todo = can.data(el.closest('.todo'), 'todo');
+		
+		// Display the calendar
+		var cal = this.options.calendar;
+		dijit.place.at(cal.domNode, {x: 510, y: dojo.position(el[0]).y}, ["TL"]);
+		cal.set('value', todo.dueDate || "");
+		this._todo = todo;
+		dojo.query(cal.domNode).style('visibility', 'visible');
+	},
+
+	// Listen for a clear due date
+	'.todo .clear-date click' : function(el, e){
+		can.data(el.closest('.todo'), 'todo').attr('dueDate', null).save();
+	},
+	
+	// Date change for Todo	
+	'{calendar} change': function(calendar, date){
+		// Update the todo if one exists
+		if (this._todo) {
+			dojo.query(this.options.calendar.domNode).style('visibility', 'hidden');
+			this._todo.attr('dueDate', date || null).save();
+			delete this._todo;
+		}
 	}
 
 })
@@ -191,7 +257,8 @@ can.Control('Todos',{
 // Initialize the app
 Todo.findAll({}, function(todos) {
 	new Todos('#todoapp', {
-		todos: todos
+		todos: todos,
+		calendar: new dijit.CalendarLite({}, "calendar")
 	});
 });
 
