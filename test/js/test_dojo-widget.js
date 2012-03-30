@@ -1,6 +1,6 @@
-steal('test.js').then(function() {
+steal('test.js?dojo-widget').then(function() {
 	
-	helpers.selectDay = function(diff) {
+	var selectDay = function(diff) {
 		var today = new Date(),
 			daysInMonth = new Date(2012, today.getMonth()+1, 0).getDate(),
 			monthChange = 0
@@ -37,14 +37,14 @@ steal('test.js').then(function() {
 		helpers.add(1, 'today todo');
 		S('#todo-list .todo:nth-child(1) .due-date').click();
 		S('#calendar').visible('calendar is shown');
-		helpers.selectDay(0);
+		selectDay(0);
 		S('#todo-list .todo:nth-child(1) .date').text('Today', 'due date is today');
 		helpers.remove(1);
 
 		// Set due date to yesterday
 		helpers.add(1, 'yesterday todo');
 		S('#todo-list .todo:nth-child(1) .due-date').click();
-		helpers.selectDay(-1);
+		selectDay(-1);
 		S('#todo-list .todo:nth-child(1) .date').text('Yesterday', 'due date is yesterday');
 		S('#todo-list .todo:nth-child(1) .date').hasClass('late', true, 'due date is late');
 		helpers.remove(1);
@@ -52,7 +52,7 @@ steal('test.js').then(function() {
 		// Set due date to tomorrow
 		helpers.add(1, 'tomorrow todo');
 		S('#todo-list .todo:nth-child(1) .due-date').click();
-		helpers.selectDay(1);
+		selectDay(1);
 		S('#todo-list .todo:nth-child(1) .date').text('Tomorrow', 'due date is tomorrow');
 		S('#todo-list .todo:nth-child(1) .date').hasClass('late', false, 'due date is on time');
 		helpers.remove(1);
@@ -60,7 +60,7 @@ steal('test.js').then(function() {
 		// Set due date to the future
 		helpers.add(1, 'future todo');
 		S('#todo-list .todo:nth-child(1) .due-date').click();
-		today = helpers.selectDay(2);
+		today = selectDay(2);
 		S('#todo-list .todo:nth-child(1) .date').text((today.getMonth()+1)+'/'+today.getDate()+'/'+today.getFullYear(), 'due date is in the future');
 		S('#todo-list .todo:nth-child(1) .date').hasClass('late', false, 'future due date is on time');
 		helpers.remove(1);
@@ -68,7 +68,7 @@ steal('test.js').then(function() {
 		// Set due date to the past
 		helpers.add(1, 'past todo');
 		S('#todo-list .todo:nth-child(1) .due-date').click();
-		today = helpers.selectDay(-2);
+		today = selectDay(-2);
 		S('#todo-list .todo:nth-child(1) .date').text((today.getMonth()+1)+'/'+today.getDate()+'/'+today.getFullYear(), 'due date is in the past');
 		S('#todo-list .todo:nth-child(1) .date').hasClass('late', true, 'past due date is late');
 		
