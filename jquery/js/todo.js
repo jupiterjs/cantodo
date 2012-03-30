@@ -73,19 +73,34 @@ can.Model('Todo', {
 
 // List for Todos
 can.Model.List('Todo.List',{
-	// Utility methods go here
+	
+	completed: function() {
+		// Ensure this triggers on length change
+		this.attr('length');
+		
+		var completed = 0;
+		this.each(function(i, todo) {
+			completed += todo.attr('complete') ? 1 : 0
+		});
+		return completed;
+	},
+	
+	remaining: function() {
+		return this.attr('length') - this.completed();
+	},
+	
+	allComplete: function() {
+		return this.attr('length') === this.completed();
+	}
+	
 });
 
 can.Control('Todos',{
 
 	// Initialize the Todos list
 	init : function(){
-		// Initialize statistics
-		this['{todos} change']();
-	
 		// Render the Todos
 		this.element.append(can.view('views/todo', {
-			stats: this.stats,
 			todos: this.options.todos
 		}));
 		
@@ -96,7 +111,7 @@ can.Control('Todos',{
 	// Listen for when a new Todo has been entered
 	'#new-todo keyup' : function(el, ev){
 		if(ev.keyCode == 13){
-			var todo = new Todo({
+			new Todo({
 				text : el.val(),
 				complete : false
 			}).save(function() {
@@ -145,7 +160,7 @@ can.Control('Todos',{
 	
 	// Listen for toggle all completed Todos
 	'#toggle-all change' : function(el, ev) {
-		var toggle = !!this.stats.attr('remaining');
+		var toggle = !!this.options.todos.remaining();
 		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
 		});
@@ -162,22 +177,7 @@ can.Control('Todos',{
 		
 	// Update statistics on change in the Todo list
 	'{todos} change' : function(){
-		var completed = 0,
-			length = this.options.todos.length;
-		can.each(this.options.todos, function(i, todo) {
-			completed += todo.complete ? 1 : 0;
-		});
-		
-		// Update the stats
-		this.stats = this.stats || new can.Observe();
-		this.stats.attr({
-			completed: completed,
-			total: length,
-			remaining: length - completed,
-			allComplete: length === completed
-		});
-		
-		$('#toggle-all').prop('checked', length === completed);
+		$('#toggle-all').prop('checked', this.options.todos.allComplete());
 	}
 
 })
