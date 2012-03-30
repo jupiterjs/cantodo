@@ -1,6 +1,6 @@
 (function() {
 
-YUI().use('calendar', 'json', 'node', function(Y) {
+YUI().use(/* CanJS */ 'can', 'calendar', 'json', 'node', function(Y) {
 
 // Calculates the difference between two dates by number of days.
 var difference = function(date1, date2) {
@@ -164,10 +164,10 @@ can.Control('Todos',{
 	// Listen for an edited Todo
 	'.todo .edit keyup' : function(el, ev){
 		if(ev.keyCode == 13){
-			this['.todo .edit focusout'].apply(this, arguments);
+			this['.todo .edit blur'].apply(this, arguments);
 		}
 	},
-	'.todo .edit focusout' : function(el, ev) {
+	'.todo .edit blur' : function(el, ev) {
 		el.ancestor('.todo').getData('todo')
 			.attr({
 				editing: false,

@@ -1,6 +1,6 @@
 (function() {
 
-YUI().use('json', 'node', function(Y) {
+YUI().use(/* CanJS */ 'can', 'json', 'node', function(Y) {
 
 // Basic Todo entry model
 // { text: 'todo', complete: false }
@@ -122,10 +122,10 @@ can.Control('Todos',{
 	// Listen for an edited Todo
 	'.todo .edit keyup' : function(el, ev){
 		if(ev.keyCode == 13){
-			this['.todo .edit focusout'].apply(this, arguments);
+			this['.todo .edit blur'].apply(this, arguments);
 		}
 	},
-	'.todo .edit focusout' : function(el, ev) {
+	'.todo .edit blur' : function(el, ev) {
 		el.ancestor('.todo').getData('todo')
 			.attr({
 				editing: false,
