@@ -4,7 +4,7 @@ YUI().use(/* CanJS */ 'can', 'json', 'node', function(Y) {
 
 // Basic Todo entry model
 // { text: 'todo', complete: false }
-can.Model('Todo', {
+Todo = can.Model({
 	
 	// Implement local storage handling
 	localStore: function(cb){
@@ -19,7 +19,7 @@ can.Model('Todo', {
 		}
 	},
 	
-	findAll: function(params, success){
+	findAll: function(params){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
 			var instances = [],
@@ -32,7 +32,7 @@ can.Model('Todo', {
 		return def;
 	},
 	
-	destroy: function(id, success){
+	destroy: function(id){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
 			for (var i = 0; i < todos.length; i++) {
@@ -46,7 +46,7 @@ can.Model('Todo', {
 		return def
 	},
 	
-	create: function(attrs, success){
+	create: function(attrs){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
 			attrs.id = attrs.id || parseInt(100000 *Math.random());
@@ -56,7 +56,7 @@ can.Model('Todo', {
 		return def
 	},
 	
-	update: function(id, attrs, success){
+	update: function(id, attrs){
 		var def = new can.Deferred();
 		this.localStore(function(todos){
 			for (var i = 0; i < todos.length; i++) {
@@ -74,7 +74,7 @@ can.Model('Todo', {
 },{});
 
 // List for Todos
-can.Model.List('Todo.List',{
+Todo.List = can.Model.List({
 	
 	completed: function() {
 		// Ensure this triggers on length change
@@ -97,7 +97,7 @@ can.Model.List('Todo.List',{
 	
 });
 
-can.Control('Todos',{
+var Todos = can.Control('Todos',{
 
 	// Initialize the Todos list
 	init : function(){
@@ -133,19 +133,24 @@ can.Control('Todos',{
 			el.one('.edit').focus().select();
 		});
 	},
-	
-	// Listen for an edited Todo
-	'.todo .edit keyup' : function(el, ev){
-		if(ev.keyCode == 13){
-			this['.todo .edit blur'].apply(this, arguments);
-		}
-	},
-	'.todo .edit blur' : function(el, ev) {
+
+	// Update a todo
+	updateTodo: function(el) {
 		el.ancestor('.todo').getData('todo')
 			.attr({
 				editing: false,
 				text: el.get('value')
 			}).save();
+	},
+	
+	// Listen for an edited Todo
+	'.todo .edit keyup' : function(el, ev){
+		if(ev.keyCode == 13){
+			this.updateTodo(el);
+		}
+	},
+	'.todo .edit blur' : function(el, ev) {
+		this.updateTodo(el);
 	},
 	
 	// Listen for the toggled completion of a Todo
