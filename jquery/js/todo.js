@@ -160,11 +160,10 @@ can.Control('Todos',{
 	
 	// Listen for toggle all completed Todos
 	'#toggle-all change' : function(el, ev) {
-		var toggle = !!this.options.todos.remaining();
+		var toggle = el.prop('checked');
 		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
 		});
-		el.prop('checked', toggle);
 		$('#todo-list .todo .toggle').prop('checked', toggle);
 	},
 	
