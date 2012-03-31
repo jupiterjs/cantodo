@@ -149,7 +149,7 @@ Todos = can.Control({
 			this.updateTodo(el);
 		}
 	},
-	'.todo .edit focusout' : function(el, ev) {
+	'.todo .edit blur' : function(el, ev) {
 		this.updateTodo(el);
 	},
 	
