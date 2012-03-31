@@ -1,19 +1,28 @@
 (function() {
 
+YUI().use(/* CanJS */ 'can', 'calendar', 'json', 'node', function(Y) {
+
+// Calculates the difference between two dates by number of days.
+var difference = function(date1, date2) {
+	date1 = new Date(date1.getFullYear(), date1.getMonth(), date1.getDate());
+	date2 = new Date(date2.getFullYear(), date2.getMonth(), date2.getDate());
+	return (date1 - date2) / (1000*60*60*24);
+};
+
 // Basic Todo entry model
 // { text: 'todo', complete: false }
 Todo = can.Model({
 	
 	// Implement local storage handling
 	localStore: function(cb){
-		var name = 'todos-canjs-mootools',
-			data = JSON.decode( window.localStorage[name] || (window.localStorage[name] = '[]') ),
+		var name = 'todos-canjs-yui-widget',
+			data = Y.JSON.parse( window.localStorage[name] || (window.localStorage[name] = '[]') ),
 			res = cb.call(this, data);
 		if(res !== false){
 			can.each(data, function(i, todo) {
 				delete todo.editing;
 			});
-			window.localStorage[name] = JSON.encode(data);
+			window.localStorage[name] = Y.JSON.stringify(data);
 		}
 	},
 	
@@ -69,7 +78,34 @@ Todo = can.Model({
 		return def
 	}
 	
-},{});
+},{
+		
+	prettyDate: function(raw){
+		var raw = this.attr('dueDate');
+		if (!raw) {
+			return '';
+		}
+
+		var date = new Date(raw),
+			diff = difference(new Date(), date);
+		
+		if(diff === -1) {
+			return 'Tomorrow';
+		} else if(diff === 0) {
+			return 'Today';
+		} else if(diff === 1) {
+			return 'Yesterday';
+		} else {
+			return (date.getMonth()+1) + '/' + (date.getDate()) + '/' + date.getFullYear();
+		}
+	},
+	
+	isLate: function(raw) {
+		var raw = this.attr('dueDate');
+		return !raw ? false : difference(new Date(), new Date(raw)) > 0;
+	}
+
+});
 
 // List for Todos
 Todo.List = can.Model.List({
@@ -100,21 +136,27 @@ Todos = can.Control({
 	// Initialize the Todos list
 	init : function(){
 		// Render the Todos
-		this.element[0].appendChild(can.view('views/todo', {
+		this.element.append(can.view('todo', {
 			todos: this.options.todos
 		}));
 		
-		window.todos = this.options.todos;
-		
 		// Clear the new todo field
-		$$('#new-todo').set('value','')[0].focus();
+		Y.one('#new-todo').set('value','').focus();
+		
+		// Hide the calendar on page click
+		var cal = this.options.calendar;
+		Y.one(document).on('click', function(ev) {
+			if (!ev.target.hasClass('due-date') && !ev.target.ancestor('#calendar')) {
+				cal.hide();
+			}
+		});
 	},
 		
 	// Listen for when a new Todo has been entered
 	'#new-todo keyup' : function(el, ev){
-		if(ev.code == 13){
+		if(ev.keyCode == 13){
 			new Todo({
-				text : el.get('value')[0],
+				text : el.get('value'),
 				complete : false
 			}).save(function() {
 				el.set('value','');
@@ -128,52 +170,50 @@ Todos = can.Control({
 	},
 	
 	// Listen for editing a Todo
-	'.todo dblclick' : function(el, ev) {
-		el.retrieve('todo')[0].attr('editing', true).save(function() {
-			var edit = el.getElement('.edit')[0];
-			edit.focus();
-			edit.select();
+	'.todo dblclick' : function(el) {
+		el.getData('todo').attr('editing', true).save(function() {
+			el.one('.edit').focus().select();
 		});
 	},
-	
+
 	// Update a todo
 	updateTodo: function(el) {
-		el.getParent('.todo').retrieve('todo')[0]
+		el.ancestor('.todo').getData('todo')
 			.attr({
 				editing: false,
-				text: el.get('value')[0]
+				text: el.get('value')
 			}).save();
 	},
 	
 	// Listen for an edited Todo
 	'.todo .edit keyup' : function(el, ev){
-		if(ev.code == 13){
+		if(ev.keyCode == 13){
 			this.updateTodo(el);
 		}
 	},
 	'.todo .edit blur' : function(el, ev) {
-		this.updateTodo(el);
+			this.updateTodo(el);
 	},
 	
 	// Listen for the toggled completion of a Todo
 	'.todo .toggle click' : function(el, ev) {
-		el.getParent('.todo').retrieve('todo')[0]
-			.attr('complete', el.get('checked')[0])
+		el.ancestor('.todo').getData('todo')
+			.attr('complete', el.get('checked'))
 			.save();
 	},
 	
 	// Listen for a removed Todo
 	'.todo .destroy click' : function(el){
-		el.getParent('.todo').retrieve('todo')[0].destroy();
+		el.ancestor('.todo').getData('todo').destroy();
 	},
 	
 	// Listen for toggle all completed Todos
 	'#toggle-all click' : function(el, ev) {
-		var toggle = el.get('checked')[0];
+		var toggle = el.get('checked');
 		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
 		});
-		$$('#todo-list .todo .toggle').set('checked', toggle);
+		Y.all('#todo-list .todo .toggle').set('checked', toggle);
 	},
 	
 	// Listen for removing all completed Todos
@@ -185,7 +225,38 @@ Todos = can.Control({
 		
 	// Update statistics on change in the Todo list
 	'{todos} change' : function(){
-		$$('#toggle-all').set('checked', this.options.todos.allComplete());
+		Y.all('#toggle-all').set('checked', this.options.todos.allComplete());
+	},
+	
+	// Listen for a change due date request
+	'.todo .due-date click' : function(el, ev){
+		ev.preventDefault();
+		
+		// Cache the todo
+		var todo = el.ancestor('.todo').getData('todo');
+		
+		// Display the calendar
+		var cal = this.options.calendar;
+		Y.one('#calendar').setStyle('top', el.getY() + 'px');
+		cal.deselectDates();
+		cal.selectDates(todo.dueDate || []);
+		this._todo = todo;
+		cal.show();
+	},
+	
+	// Listen for a clear due date
+	'.todo .clear-date click' : function(el, e){
+		el.ancestor('.todo').getData('todo').attr('dueDate', null).save();
+	},
+	
+	// Date change for Todo	
+	'{calendar} selectionChange': function(calendar, ev){
+		// Update the todo if one exists
+		if (this._todo) {
+			this.options.calendar.hide();
+			this._todo.attr('dueDate', ev.newSelection[0] || null).save();
+			delete this._todo;
+		}
 	}
 
 })
@@ -193,8 +264,19 @@ Todos = can.Control({
 // Initialize the app
 Todo.findAll({}, function(todos) {
 	new Todos('#todoapp', {
-		todos: todos
+		todos: todos,
+		calendar: new Y.Calendar({
+	    contentBox: "#calendar",
+	    height: '200px',
+	    width: '200px',
+			selectionMode: 'single',
+	    showPrevMonth: true,
+	    showNextMonth: true,
+			visible: false
+		}).render()
 	});
+});
+
 });
 
 })();

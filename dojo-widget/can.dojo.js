@@ -1,4 +1,6 @@
 (function(can, window, undefined){
+define("can/dojo", ["dojo/query", "dojo/NodeList-dom", "dojo/NodeList-traverse"], function(){
+
 
 	// event.js
 	// ---------
@@ -56,80 +58,222 @@ can.dispatch = function(event){
 ;
 
 
-	// fragment.js
-	// ---------
-	// _DOM Fragment support._
-	
-	var table = document.createElement('table'),
-		tableRow = document.createElement('tr'),
-		containers = {
-		  'tr': document.createElement('tbody'),
-		  'tbody': table, 'thead': table, 'tfoot': table,
-		  'td': tableRow, 'th': tableRow,
-		  '*': document.createElement('div')
+define("plugd/trigger",["dojo"], function(dojo){
+    
+	var d = dojo, isfn = d.isFunction, 
+		leaveRe = /mouse(enter|leave)/, 
+		_fix = function(_, p){
+			return "mouse" + (p == "enter" ? "over" : "out"); 
 		},
-		fragmentRE = /^\s*<(\w+)[^>]*>/,
-		fragment  = function(html, name) {
-			if (name === undefined) {
-				name = fragmentRE.test(html) && RegExp.$1;
+		mix = d._mixin,
+		
+		// the guts of the node triggering logic:
+		// the function accepts node (not string|node), "on"-less event name,
+		// and an object of args to mix into the event. 
+		realTrigger = d.doc.createEvent ? 
+			function(n, e, a){
+				// the sane branch
+				var ev = d.doc.createEvent("HTMLEvents");
+				e = e.replace(leaveRe, _fix);
+				// destroyed events should not bubble
+				ev.initEvent(e,  e === "destroyed" ? false : true, true);
+				a && mix(ev, a);
+				n.dispatchEvent(ev);
+			} : 
+			function(n, e, a){
+				// the janktastic branch
+				var ev = "on" + e, stop = false, lc = e.toLowerCase(), node = n; 
+				try{
+// FIXME: is this worth it? for mixed-case native event support:? Opera ends up in the
+//	createEvent path above, and also fails on _some_ native-named events. 
+//					if(lc !== e && d.indexOf(d.NodeList.events, lc) >= 0){
+//						// if the event is one of those listed in our NodeList list
+//						// in lowercase form but is mixed case, throw to avoid
+//						// fireEvent. /me sighs. http://gist.github.com/315318
+//						throw("janktastic");
+//					}
+					n.fireEvent(ev);
+				}catch(er){
+					// a lame duck to work with. we're probably a 'custom event'
+					var evdata = mix({ 
+						type: e, target: n, faux: true,
+						// HACK: [needs] added support for customStopper to _base/event.js
+						// some tests will fail until del._stopPropagation has support.
+						_stopper: function(){ stop = this.cancelBubble; }
+					}, a);
+				
+					isfn(n[ev]) && n[ev](evdata);
+				
+					// handle bubbling of custom events, unless the event was stopped.
+					while(!stop && n !== d.doc && n.parentNode){
+						n = n.parentNode;
+						isfn(n[ev]) && n[ev](evdata);
+					}
+				}
 			}
-			if (!(name in containers)) name = '*';
-			var container = containers[name];
-			// IE's parser will strip any `<tr><td>` tags when `innerHTML`
-			// is called on a `tbody`. To get around this, we construct a 
-			// valid table with a `tbody` that has the `innerHTML` we want. 
-			// Then the container is the `firstChild` of the `tbody`.
-			// [source](http://www.ericvasilik.com/2006/07/code-karma.html).
-			if(name === "tr") {
-				var temp = document.createElement('div');
-				temp.innerHTML = "<table><tbody>" + html + "</tbody></table>";
-				container = temp.firstChild.firstChild;
-			} else {
-				container.innerHTML = '' + html;
-			}
-			// IE8 barfs if you pass slice a `childNodes` object, so make a copy.
-			var tmp = {},
-				children = container.childNodes;
-			tmp.length = children.length;
-			for(var i=0; i<children.length; i++){
-				tmp[i] = children[i];
-			}
-			return [].slice.call(tmp);
-		}
+	;
 	
-	can.buildFragment = function(htmls, nodes){
-		var parts = fragment(htmls[0]),
-			frag = document.createDocumentFragment();
-		parts.forEach(function(part){
-			frag.appendChild(part);
-		})
-		return {
-			fragment: frag
-		}
+	d._trigger = function(/* DomNode|String */node, /* String */event, extraArgs){
+		// summary:
+		//		Helper for `dojo.trigger`, which handles the DOM cases. We should never
+		//		be here without a domNode reference and a string eventname.
+		var n = d.byId(node), ev = event && event.slice(0, 2) == "on" ? event.slice(2) : event;
+		realTrigger(n, ev, extraArgs);
+	};
+		
+	d.trigger = function(obj, event, extraArgs){
+		// summary: 
+		//		Trigger some event. It can be either a Dom Event, Custom Event, 
+		//		or direct function call. 
+		//
+		// description:
+		//		Trigger some event. It can be either a Dom Event, Custom Event, 
+		//		or direct function call. NOTE: This function does not trigger
+		//		default behavior, only triggers bound event listeneres. eg:
+		//		one cannot trigger("anchorNode", "onclick") and expect the browser
+		//		to follow the href="" attribute naturally.
+		//
+		// obj: String|DomNode|Object|Function
+		//		An ID, or DomNode reference, from which to trigger the event.
+		//		If an Object, fire the `event` in the scope of this object,
+		//		similar to calling dojo.hitch(obj, event)(). The return value
+		//		in this case is returned from `dojo.trigger`
+		//	 
+		// event: String|Function
+		//		The name of the event to trigger. can be any DOM level 2 event
+		//		and can be in either form: "onclick" or "click" for instance.
+		//		In the object-firing case, this method can be a function or
+		//		a string version of a member function, just like `dojo.hitch`.
+		//
+		// extraArgs: Object?
+		//		An object to mix into the `event` object passed to any bound 
+		//		listeners. Be careful not to override important members, like
+		//		`type`, or `preventDefault`. It will likely error.
+		//
+		//		Additionally, extraArgs is moot in the object-triggering case,
+		//		as all arguments beyond the `event` are curried onto the triggered
+		//		function.
+		//
+		// example: 
+		//	|	dojo.connect(node, "onclick", function(e){ /* stuff */ });
+		//	|	// later:
+		//	|	dojo.trigger(node, "onclick");
+		//
+		// example:
+		//	|	// or from within dojo.query: (requires dojo.NodeList)
+		//	|	dojo.query("a").onclick(function(){}).trigger("onclick");
+		//
+		// example:
+		//	|	// fire obj.method() in scope of obj
+		//	|	dojo.trigger(obj, "method");
+		//
+		// example:
+		//	|	// fire an anonymous function:
+		//	|	dojo.trigger(d.global, function(){ /* stuff */ });
+		//
+		// example: 
+		//	|	// fire and anonymous function in the scope of obj
+		//	|	dojo.trigger(obj, function(){ this == obj; });
+		//
+		// example:
+		//	|	// with a connected function like:
+		//	|	dojo.connect(dojo.doc, "onclick", function(e){
+		//	|		if(e && e.manuallydone){
+		//	|			console.log("this was a triggered onclick, not natural");
+		//	|		}
+		//	|	});
+		//	|	// fire onclick, passing in a custom bit of info
+		//	|	dojo.trigger("someId", "onclick", { manuallydone:true });
+		//
+		// returns: Anything
+		//		Will not return anything in the Dom event case, but will return whatever
+		//		return value is received from the triggered event. 
+		return (isfn(obj) || isfn(event) || isfn(obj[event])) ? 
+			d.hitch.apply(d, arguments)() : d._trigger.apply(d, arguments);
 	};
 	
+	// adapt for dojo.query:
+	/*=====
+	dojo.extend(dojo.NodeList, {
+		trigger: function(event, data){
+			// summary:
+			//		Trigger some Event originating from each of the nodes in this
+			//		`dojo.NodeList`. 
+			//
+			// event: String
+			//		Any strig identifier for the event.type to be triggered.
+			//
+			// data: Object
+			//		Just like `extraArgs` for `dojo.trigger`, additional data
+			//		to mix into the event object.
+			//
+			// example:
+			//	|	dojo.query("a").trigger("onclick");
+			
+			return this; // dojo.NodeList
+		}
+	});
+	=====*/
+	d.NodeList.prototype.trigger = d.NodeList._adaptAsForEach(d._trigger); 
+
+	// if the node.js module is available, extend trigger into that.
+	if(d._Node && !d._Node.prototype.trigger){
+		d.extend(d._Node, {
+			trigger: function(ev, data){
+				// summary:
+				//		Fire some some event originating from this node.
+				//		Only available if both the `dojo.trigger` and `dojo.node` plugin 
+				//		are enabled. Allows chaining as all `dojo._Node` methods do.
+				//
+				// ev: String
+				//		Some string event name to fire. eg: "onclick", "submit"
+				//
+				// data: Object
+				//		Just like `extraArgs` for `dojo.trigger`, additional data
+				//		to mix into the event object.
+				//
+				// example:
+				//	|	// fire onlick orginiating from a node with id="someAnchorId"
+				//	|	dojo.node("someAnchorId").trigger("click");
+
+				d._trigger(this, ev, data);
+				return this; // dojo._Node
+			}
+		});
+	}
+
+	return d.trigger;
+	
+});
+
 ;
 
-	// mootools.js
+
+	// dojo.js
 	// ---------
-	// _MooTools node list._
-	// 
+	// _dojo node list._
+	//  
+	// These are pre-loaded by `steal` -> no callback.
+	require(["dojo", "dojo/query", "plugd/trigger", "dojo/NodeList-dom"]);
+	
 	// Map string helpers.
 	can.trim = function(s){
-		return s && s.trim()
+		return s && dojo.trim(s);
 	}
 	
 	// Map array helpers.
-	can.makeArray = Array.from;
-	can.isArray = function(arr){
-		return typeOf(arr) === 'array'
+	can.makeArray = function(arr){
+		array = [];
+		dojo.forEach(arr, function(item){ array.push(item)});
+		return array;
 	};
+	can.isArray = dojo.isArray;
 	can.inArray = function(item,arr){
-		return arr.indexOf(item)
-	}
+		return dojo.indexOf(arr, item);
+	};
 	can.map = function(arr, fn){
-		return Array.from(arr||[]).map(fn);
-	}
+		return dojo.map(can.makeArray(arr||[]), fn);
+	};
 	can.each = function(elements, callback) {
     	var i, key;
 	    if (typeof  elements.length == 'number' && elements.pop)
@@ -142,37 +286,92 @@ can.dispatch = function(event){
 	      }
 	    return elements;
   	}
-
 	// Map object helpers.
 	can.extend = function(first){
 		if(first === true){
 			var args = can.makeArray(arguments);
 			args.shift();
-			return Object.merge.apply(Object, args)
+			return dojo.mixin.apply(dojo, args)
 		}
-		return Object.append.apply(Object, arguments)
+		return dojo.mixin.apply(dojo, arguments)
 	}
 	can.param = function(object){
-		return Object.toQueryString(object)
+		return dojo.objectToQuery(object)
 	}
 	can.isEmptyObject = function(object){
-		return Object.keys(object).length === 0;
+		var prop;
+		for(prop in object){
+			break;
+		}
+		return prop === undefined;;
 	}
 	// Map function helpers.
-	can.proxy = function(func){
-		var args = can.makeArray(arguments),
-			func = args.shift();
-		
-		return func.bind.apply(func, args)
+	can.proxy = function(func, context){
+		return dojo.hitch(context, func)
 	}
 	can.isFunction = function(f){
-		return typeOf(f) == 'function'
+		return dojo.isFunction(f);
 	}
-	// Make this object so you can bind on it.
+	/**
+	 * EVENTS
+	 * 
+	 * Dojo does not use the callback handler when unbinding.  Instead
+	 * when binding (dojo.connect or dojo.on) an object with a remove
+	 * method is returned.
+	 * 
+	 * Because of this, we have to map each callback to the "remove"
+	 * object to it can be passed to dojo.disconnect.
+	 */
+	
+	// The id of the `function` to be bound, used as an expando on the `function`
+	// so we can lookup it's `remove` object.
+	var id = 0,
+		// Takes a node list, goes through each node
+		// and adds events data that has a map of events to 
+		// callbackId to `remove` object.  It looks like
+		// `{click: {5: {remove: fn}}}`. 
+		addBinding = function( nodelist, ev, cb ) {
+			nodelist.forEach(function(node){
+				var node = new dojo.NodeList(node)
+				var events = can.data(node,"events");
+				if(!events){
+					can.data(node,"events", events = {})
+				}
+				if(!events[ev]){
+					events[ev] = {};
+				}
+				if(cb.__bindingsIds === undefined) {
+					cb.__bindingsIds=id++;
+				} 
+				events[ev][cb.__bindingsIds] = node.on(ev, cb)[0]
+			});
+		},
+		// Removes a binding on a `nodelist` by finding
+		// the remove object within the object's data.
+		removeBinding = function(nodelist,ev,cb){
+			nodelist.forEach(function(node){
+				var node = new dojo.NodeList(node),
+					events = can.data(node,"events"),
+					handlers = events[ev],
+					handler = handlers[cb.__bindingsIds];
+				
+				dojo.disconnect(handler);
+				delete handlers[cb.__bindingsIds];
+				
+				if(can.isEmptyObject(handlers)){
+					delete events[ev]
+				}
+			});
+		}
+	
 	can.bind = function( ev, cb){
 		// If we can bind to it...
 		if(this.bind && this.bind !== can.bind){
 			this.bind(ev, cb)
+			
+		// Otherwise it's an element or `nodeList`.
+		} else if(this.on || this.nodeType){
+			addBinding( new dojo.NodeList(this), ev, cb)
 		} else if(this.addEvent) {
 			this.addEvent(ev, cb)
 		} else {
@@ -185,79 +384,70 @@ can.dispatch = function(event){
 		// If we can bind to it...
 		if(this.unbind && this.unbind !== can.unbind){
 			this.unbind(ev, cb)
-		} else if(this.removeEvent) {
-			this.removeEvent(ev, cb)
+		} 
+		
+		else if(this.on || this.nodeType) {
+			removeBinding(new dojo.NodeList(this), ev, cb);
 		} else {
 			// Make it bind-able...
 			can.removeEvent.call(this, ev, cb)
 		}
 		return this;
 	}
+	
 	can.trigger = function(item, event, args, bubble){
-		// Defaults to `true`.
-		bubble = (bubble === undefined ? true : bubble);
-		args = args || []
-		if(item.fireEvent){
-			item = item[0] || item;
-			// walk up parents to simulate bubbling .
-			while(item) {
-			// Handle walking yourself.
-				if(!event.type){
-					event = {
-						type : event,
-						target : item
-					}
+		if(item.trigger){
+			if(bubble === false){
+				if(!item[0] || item[0].nodeType === 3){
+					return;
 				}
-				var events = (item !== window ? 
-					can.$(item).retrieve('events')[0] :
-					item.retrieve('events') );
-				if (events && events[event.type]) {
-					events[event.type].keys.each(function(fn){
-						fn.apply(this, [event].concat(args));
-					}, this); 
-				} 
-				// If we are bubbling, get parent node.
-				if(bubble && item.parentNode){
-					item = item.parentNode
-				} else {
-					item = null;
-				}
-				
+				// Force stop propagation by
+				// listening to `on` and then immediately disconnecting.
+				var connect = item.on(event, function(ev){
+					
+					ev.stopPropagation && ev.stopPropagation();
+					ev.cancelBubble = true;
+					ev._stopper && ev._stopper();
+					
+					dojo.disconnect(connect);
+				})
+				item.trigger(event,args)
+			} else {
+				item.trigger(event,args)
 			}
 			
-	
 		} else {
 			if(typeof event === 'string'){
 				event = {type: event}
 			}
-			event.target = event.target || item;
 			event.data = args
+			event.target = event.target || item;
 			can.dispatch.call(item, event)
 		}
 	}
+	
 	can.delegate = function(selector, ev , cb){
-		if(this.delegate) {
+		if(this.on || this.nodeType){
+			addBinding( new dojo.NodeList(this), selector+":"+ev, cb)
+		} else if(this.delegate) {
 			this.delegate(selector, ev , cb)
-		}
-		 else if(this.addEvent) {
-			this.addEvent(ev+":relay("+selector+")", cb)
-		} else {
-			// make it bind-able ...
-		}
+		} 
 		return this;
 	}
 	can.undelegate = function(selector, ev , cb){
-		if(this.undelegate) {
+		if(this.on || this.nodeType){
+			removeBinding(new dojo.NodeList(this), selector+":"+ev, cb);
+		} else if(this.undelegate) {
 			this.undelegate(selector, ev , cb)
 		}
-		 else if(this.removeEvent) {
-			this.removeEvent(ev+":relay("+selector+")", cb)
-		} else {
-			// make it bind-able ...
-			
-		}
+
 		return this;
 	}
+
+
+	/**
+	 * Ajax
+	 */
 	var optionsMap = {
 		type:"method",
 		success : undefined,
@@ -274,119 +464,169 @@ can.dispatch = function(event){
 			}
 		}
 	}
-	can.ajax = function(options){
-		var d = can.Deferred(),
-			requestOptions = can.extend({}, options);
-		// Map jQuery options to MooTools options.
-		
-		for(var option in optionsMap){
-			if(requestOptions[option] !== undefined){
-				requestOptions[optionsMap[option]] = requestOptions[option];
-				delete requestOptions[option]
-			}
-		}
 
+	
+	can.ajax = function(options){
+		var type = can.capitalize( (options.type || "get").toLowerCase() ),
+			method = dojo["xhr"+type];
 		var success = options.success,
-			error = options.error;
+			error = options.error,
+			d = new can.Deferred();
+			
+		var def = method({
+			url : options.url,
+			handleAs : options.dataType,
+			sync : !options.async,
+			headers : options.headers,
+			content: options.data
+		})
+		def.then(function(data, ioargs){
+			updateDeferred(xhr, d);
+			d.resolve(data,"success",xhr);
+			success && success(data,"success",xhr);
+		},function(data,ioargs){
+			updateDeferred(xhr, d);
+			d.reject(xhr,"error");
+			error(xhr,"error");
+		})
 		
-		requestOptions.onSuccess = function(responseText, xml){
-			var data = responseText;
-			if(options.dataType ==='json'){
-				data = eval("("+data+")")
-			}
-			updateDeferred(request.xhr, d);
-			d.resolve(data,"success",request.xhr);
-			success && success(data,"success",request.xhr);
-		}
-		requestOptions.onError = function(){
-			updateDeferred(request.xhr, d);
-			d.reject(request.xhr,"error");
-			error(request.xhr,"error");
-		}
+		var xhr = def.ioArgs.xhr;
 		
-		var request = new Request(requestOptions);
-		request.send();
-		updateDeferred(request.xhr, d);
+
+		updateDeferred(xhr, d);
 		return d;
 			
 	}
-	// Element -- get the wrapped helper.
+	// Element - get the wrapped helper.
 	can.$ = function(selector){
 		if(selector === window){
 			return window;
 		}
-		return $$(selector)
+		if(typeof selector === "string"){
+			return dojo.query(selector)
+		} else {
+			return new dojo.NodeList(selector);
+		}
+
+		
+	}
+	can.buildFragment = function(frags, nodes){
+		var owner = nodes.length && nodes[0].ownerDocument,
+			frag = dojo.toDom(frags[0], owner );
+		if(frag.nodeType !== 11){
+			var tmp = document.createDocumentFragment();
+			tmp.appendChild(frag)
+			frag = tmp;
+		}
+		return {fragment: frag}
 	}
 	
-	// Add `document` fragment support.
-	var old = document.id;
-	document.id =  function(el){
-		if(el && el.nodeType === 11){
-			return el
-		} else{
-			return old.apply(document, arguments);
-		}
-	};
 	can.append = function(wrapped, html){
-		if(typeof html === 'string'){
-			html = can.buildFragment([html],[]).fragment
-		}
-		return wrapped.grab(html)
+		return wrapped.forEach(function(node){
+			dojo.place( html, node)
+		});
 	}
-	can.filter = function(wrapped, filter){
-		return wrapped.filter(filter);
+	
+	/**
+	 * can.data
+	 * 
+	 * can.data is used to store arbitrary data on an element.
+	 * Dojo does not support this, so we implement it itself.
+	 * 
+	 * The important part is to call cleanData on any elements 
+	 * that are removed from the DOM.  For this to happen, we
+	 * overwrite 
+	 * 
+	 *   -dojo.empty
+	 *   -dojo.destroy
+	 *   -dojo.place when "replace" is used TODO!!!!
+	 * 
+	 * For can.Control, we also need to trigger a non bubbling event
+	 * when an element is removed.  We do this also in cleanData.
+	 */
+	var data = {},
+	    uuid = can.uuid = +new Date(),
+	    exp  = can.expando = 'can' + uuid;
+	
+	function getData(node, name) {
+	    var id = node[exp], store = id && data[id];
+	    return name === undefined ? store || setData(node) :
+	      (store && store[name]);
 	}
-	can.data = function(wrapped, key, value){
-		if(value === undefined){
-			return wrapped[0].retrieve(key)
-		} else {
-			return wrapped.store(key, value)
-		}
+	
+	function setData(node, name, value) {
+	    var id = node[exp] || (node[exp] = ++uuid),
+	      store = data[id] || (data[id] = {});
+	    if (name !== undefined) store[name] = value;
+	    return store;
+	};
+	
+	var cleanData = function(elems){
+	  	can.trigger(new dojo.NodeList(elems),"destroyed",[],false)
+	  	for ( var i = 0, elem;
+			(elem = elems[i]) !== undefined; i++ ) {
+				var id = elem[exp]
+				delete data[id];
+			}
+	};
+	
+	can.data = function(wrapped, name, value){
+		return value === undefined ?
+			wrapped.length == 0 ? undefined : getData(wrapped[0], name) :
+			wrapped.forEach(function(node){
+				setData(node, name, value);
+			});
+	};
+	
+	// Overwrite `dojo.destroy`, `dojo.empty` and `dojo.place`.
+	var empty = dojo.empty;
+	dojo.empty = function(){
+		for(var c; c = node.lastChild;){ // Intentional assignment.
+			dojo.destroy(c);
+		} 
 	}
+	
+	var destroy = dojo.destroy;
+	dojo.destroy = function(node){
+		node = dojo.byId(node);
+		cleanData([node]);
+		node.getElementsByTagName && cleanData(node.getElementsByTagName('*'))
+		
+		return destroy.apply(dojo, arguments);
+	};
+	
 	can.addClass = function(wrapped, className){
 		return wrapped.addClass(className);
 	}
+	
 	can.remove = function(wrapped){
 		// We need to remove text nodes ourselves.
-		var filtered = wrapped.filter(function(node){ 
-			if(node.nodeType !== 1){
-				node.parentNode.removeChild(node);
-			} else {
-				return true;
-			}
-		})
-		filtered.destroy();
-		return filtered;
+		wrapped.forEach(dojo.destroy);
 	}
-	
-	// Destroyed method.
-	var destroy = Element.prototype.destroy;
-	Element.implement({
-		destroy : function(){
-			can.trigger(this,"destroyed",[],false)
-			var elems = this.getElementsByTagName("*");
-			for ( var i = 0, elem; (elem = elems[i]) !== undefined; i++ ) {
-				can.trigger(elem,"destroyed",[],false);
-			}
-			destroy.apply(this, arguments)
-		}
-	});
+
 	can.get = function(wrapped, index){
 		return wrapped[index];
 	}
-	
-	// Overwrite to handle IE not having an id.
-	// IE barfs if text node.
-	var idOf = Slick.uidOf;
-	Slick.uidOf = function(node){
-		if(node.nodeType === 1 || node === window){
-			return idOf(node);
-		} else {
-			return Math.random();
-		}
+
+	// Add pipe to `dojo.Deferred`.
+	can.extend(dojo.Deferred.prototype, {
+		pipe : function(done, fail){
+			var d = new dojo.Deferred();
+			this.addCallback(function(){
+				d.resolve( done.apply(this, arguments) );
+			});
 			
-		
-	}
+			this.addErrback(function(){
+				if(fail){
+					d.reject( fail.apply(this, arguments) );
+				} else {
+					d.reject.apply(d, arguments);
+				}
+			});
+			return d;
+		}
+	});
+
 ;
 
 
@@ -575,6 +815,7 @@ can.dispatch = function(event){
 		};
 
 		can.extend(can, {
+			// Escapes strings for HTML.
 			/**
 			 * @function can.esc
 			 * @parent can.util
@@ -582,7 +823,6 @@ can.dispatch = function(event){
 			 * 
 			 * can.esc( "<foo>&<bar>" ) //-> "&lt;foo&lt;&amp;&lt;bar&lt;"
 			 */
-			// Escapes strings for HTML.
 			esc : function( content ) {
 				return ( "" + content )
 					.replace(/&/g, '&amp;')
@@ -653,6 +893,7 @@ can.dispatch = function(event){
 					}
 				}
 			},
+			// Capitalizes a string.
 			/**
 			 * @function can.capitalize
 			 * @parent can.util
@@ -663,12 +904,12 @@ can.dispatch = function(event){
 			 * @param {String} s the string.
 			 * @return {String} a string with the first character capitalized.
 			 */
-			// Capitalizes a string.
 			capitalize: function( s, cache ) {
 				// Used to make newId.
 				return s.charAt(0).toUpperCase() + s.slice(1);
 			},
 			
+			// Underscores a string.
 			/**
 			 * @function can.underscore
 			 * @parent can.util
@@ -680,7 +921,6 @@ can.dispatch = function(event){
 			 * @param {String} s
 			 * @return {String} the underscored string
 			 */
-			// Underscores a string.
 			underscore: function( s ) {
 				return s
 					.replace(colons, '/')
@@ -689,6 +929,7 @@ can.dispatch = function(event){
 					.replace(dash, '_')
 					.toLowerCase();
 			},
+			// Micro-templating.
 			/**
 			 * @function can.sub
 			 * @parent can.util
@@ -703,7 +944,6 @@ can.dispatch = function(event){
 			 * objects can be used.
 			 * @param {Boolean} [remove] if a match is found, remove the property from the object
 			 */
-			// Micro-templating.
 			sub: function( str, data, remove ) {
 
 				var obs = [];
@@ -808,6 +1048,10 @@ can.dispatch = function(event){
 		_inherit: function( newProps, oldProps, addTo ) {
 			can.extend(addTo || newProps, newProps || {})
 		},
+
+		// Set `defaults` as the merger of the parent `defaults` and this 
+		// object's `defaults`. If you overwrite this method, make sure to
+		// include option merging logic.
 		/**
 		 * Setup is called immediately after a constructor function is created and 
 		 * set to inherit from its base constructor.  It is called with a base constructor and
@@ -857,9 +1101,6 @@ can.dispatch = function(event){
 		 * @param {Object} [staticProps] the static properties of the new constructor
 		 * @param {Object} [protoProps] the prototype properties of the new constructor
 		 */
-		// Set `defaults` as the merger of the parent `defaults` and this 
-		// object's `defaults`. If you overwrite this method, make sure to
-		// include option merging logic.
 		setup: function( base, fullName ) {
 			this.defaults = can.extend(true,{}, base.defaults, this.defaults);
 		},
@@ -877,6 +1118,7 @@ can.dispatch = function(event){
 
 			return inst;
 		},
+		// Extends classes.
 		/**
 		 * @hide
 		 * Extends a class with new static and prototype functions.  There are a variety of ways
@@ -905,7 +1147,6 @@ can.dispatch = function(event){
 		 * 
 		 * @return {can.Construct} returns the new class
 		 */
-		// Extends classes.
 		extend: function( fullName, klass, proto ) {
 			// Figure out what was passed and normalize it.
 			if ( typeof fullName != 'string' ) {
@@ -1080,7 +1321,7 @@ can.dispatch = function(event){
 			 * @return {Array|undefined} If an array is return, [can.Construct.prototype.init] is 
 			 * called with those arguments; otherwise, the original arguments are used.
 			 */
-			//break up
+			//  
 			/** 
 			 * @function init
 			 * 
@@ -1130,7 +1371,7 @@ can.dispatch = function(event){
 			 * It doesn't matter what init returns because the `new` keyword always
 			 * returns the new object.
 			 */
-			//Breaks up code
+			//  
 			/**
 			 * @attribute constructor
 			 * 
@@ -1822,10 +2063,11 @@ can.dispatch = function(event){
 	 * 
 	 * To create an observable list, use `new can.Observe.List( ARRAY )` like:
 	 * 
-	 *     var hobbies = new can.Observe.List(['programming', 'basketball', 'nose picking'])
+	 *     var hobbies = new can.Observe.List(
+	 * 		 			['programming', 'basketball', 'nose picking'])
 	 * 
 	 * can.Observe.List inherits from [can.Observe], including it's 
-	 * [can.Observe::bind bind], [can.Observe::each], and [can.Observe.unbind] 
+	 * [can.Observe.prototype.bind bind], [can.Observe.prototype.each], and [can.Observe.prototype.unbind] 
 	 * methods.
 	 * 
 	 * can.Observe.List is inherited by [can.Model.List].
@@ -1972,11 +2214,11 @@ can.dispatch = function(event){
 				this.length = (+attr+1)
 			}
 		},
+		// Returns the serialized form of this list.
 		/**
 		 * @hide
 		 * Returns the serialized form of this list.
 		 */
-		// Returns the serialized form of this list.
 		serialize: function() {
 			return serialize(this, 'serialize', []);
 		},
@@ -2006,7 +2248,7 @@ can.dispatch = function(event){
 		 * 
 		 * @return {can.Observe.List} the original observable.
 		 */
-		//
+		//  
 		/**
 		 * `splice(index, [ howMany, elements... ] )` remove or add items 
 		 * from a specific point in the list.
@@ -2231,7 +2473,8 @@ can.dispatch = function(event){
 		 *     
 		 *     l.bind('change', function( 
 		 *         ev,        // the change event
-		 *         attr,      // the attr that was changed, for multiple items, "*" is used 
+		 *         attr,      // the attr that was changed,
+		 *     			   // for multiple items, "*" is used 
 		 *         how,       // "add"
 		 *         newVals,   // an array of new values pushed
 		 *         oldVals,   // undefined
@@ -2248,7 +2491,7 @@ can.dispatch = function(event){
 		/**
 		 * @function unshift
 		 * Add items to the start of the list.  This is very similar to
-		 * [can.Observe.List::push].  Example:
+		 * [can.Observe.List::push can.Observe.prototype.List].  Example:
 		 * 
 		 *     var l = new can.Observe.List(["a","b"]);
 		 *     l.unshift(1,2,3) //-> 5
@@ -2301,7 +2544,8 @@ can.dispatch = function(event){
 		 * 
 		 *     l.bind('change', function( 
 		 *         ev,        // the change event
-		 *         attr,      // the attr that was changed, for multiple items, "*" is used 
+		 *         attr,      // the attr that was changed, 
+		 *     			   // for multiple items, "*" is used 
 		 *         how,       // "remove"
 		 *         newVals,   // undefined
 		 *         oldVals,   // 2
@@ -2374,10 +2618,10 @@ can.dispatch = function(event){
 	// `can.Model`  
 	// _A `can.Observe` that connects to a RESTful interface._
 	//  
+	// Generic deferred piping function
 	/**
 	 * @add can.Model
 	 */
-	// Generic deferred piping function
 	var	pipe = function( def, model, func ) {
 		var d = new can.Deferred();
 		def.then(function(){
@@ -2457,15 +2701,14 @@ can.dispatch = function(event){
 			return deferred.then(success,error);
 		},
 	
-	/** 
-	 * @Static
-	 */
-	
 	// This object describes how to make an ajax request for each ajax method.  
 	// The available properties are:
 	//		`url` - The default url to use as indicated as a property on the model.
 	//		`type` - The default http request type
 	//		`data` - A method that takes the `arguments` and returns `data` used for ajax.
+	/** 
+	 * @Static
+	 */
 	ajaxMethods = {
 		/**
 		 * @function create
@@ -2532,13 +2775,13 @@ can.dispatch = function(event){
 		 * 
 		 *     Recipe = can.Model({
 		 *       update: "/recipes/{id}"
-		 *     },{})
+		 *     },{});
 		 *     
 		 * This lets you update a recipe like:
 		 *  
 		 *     Recipe.findOne({id: 1}, function(recipe){
-		 * 	      recipe.attr('name','salad')
-		 *        recipe.save()
+		 *       recipe.attr('name','salad');
+		 *       recipe.save();
 		 *     })
 		 * 
 		 * This will make an XHR request like:
@@ -2550,7 +2793,7 @@ can.dispatch = function(event){
 		 * 
 		 *     $.Model("Recipe",{
 		 *       update: "POST /recipes/{id}"
-		 *     },{})
+		 *     },{});
 		 * 
 		 * The server should send back an object with any new attributes the model 
 		 * should have.  For example if your server udpates the "updatedAt" property, it
@@ -2582,7 +2825,7 @@ can.dispatch = function(event){
 		 *       update : function(id, attrs ) {
 		 *         return $.post("/recipes/"+id+".json",attrs, null,"json");
 		 *       }
-		 *     },{})
+		 *     },{});
 		 * 
 		 * 
 		 * @param {String} id the id of the model instance
@@ -2680,8 +2923,8 @@ can.dispatch = function(event){
 		 * `can.ajax` (jQuery.ajax) like:
 		 * 
 		 *     Recipe = can.Model({
-		 * 	     findAll : {
-		 * 	       url: "/recipes.xml",
+		 *       findAll : {
+		 *         url: "/recipes.xml",
 		 *         dataType: "xml"
 		 *       }
 		 *     },{})
@@ -2707,9 +2950,9 @@ can.dispatch = function(event){
 		 * like:
 		 * 
 		 *     Recipe.findAll({favorite: true}, function(recipes){
-		 * 	     recipes[0].attr('name') //-> "Ice Water"
+		 *       recipes[0].attr('name') //-> "Ice Water"
 		 *     }, function( xhr ){
-		 * 	     // called if an error
+		 *       // called if an error
 		 *     }) //-> Deferred
 		 * 
 		 * The following API details the use of `findAll`.
@@ -2769,7 +3012,7 @@ can.dispatch = function(event){
 		 * `can.ajax` (jQuery.ajax) like:
 		 * 
 		 *     Recipe = can.Model({
-		 *       findAll : {
+		 *       findOne : {
 		 *         url: "/recipes/{id}.xml",
 		 *         dataType: "xml"
 		 *       }
@@ -2782,7 +3025,7 @@ can.dispatch = function(event){
 		 * deferred that resolves to the model data. For example:
 		 * 
 		 *     Recipe = can.Model({
-		 *       findAll : function(params){
+		 *       findOne : function(params){
 		 *         return $.ajax({
 		 *           url: '/recipes/{id}.json',
 		 *           type: 'get',
@@ -2914,7 +3157,7 @@ can.dispatch = function(event){
 		 * 
 		 *     Task = can.Model({},{})
 		 *     var tasks = Task.models([
-		 * 	     {id: 1, name : "dishes", complete : false},
+		 *       {id: 1, name : "dishes", complete : false},
 		 *       {id: 2, name: "laundry", compelte: true}
 		 *     ])
 		 *     
@@ -2967,7 +3210,7 @@ can.dispatch = function(event){
 		 * 
 		 * Or an Object with a data property and other expando properties like:
 		 * 
-		 * 	   {
+		 *     {
 		 *       count: 15000 //how many total items there might be
 		 *       data: [{id: 1, name : "justin"},{id:2, name: "brian"}, ...]
 		 *     }
@@ -3151,7 +3394,6 @@ can.dispatch = function(event){
 		 *       id: "Id"
 		 *     },{});
 		 */
-		// 
 	},
 	/**
 	 * @prototype
@@ -3418,14 +3660,78 @@ can.dispatch = function(event){
 			can.trigger(constructor,funcName, this);
 		};
 	});
-	
-	// Model lists are just like `Observe.List` except that when their items are 
-	// destroyed, it automatically gets removed from the list.
-	/**
-	 * @class can.Model.List
-	 * @inherits can.Observe.List
-	 * @parent index
-	 */
+  
+  // Model lists are just like `Observe.List` except that when their items are 
+  // destroyed, it automatically gets removed from the list.
+  /**
+   * @class can.Model.List
+   * @inherits can.Observe.List
+   * @parent index
+   *
+   * Works exactly like [can.Observe.List] and has all of the same properties,
+   * events, and functions as an observable list. The only difference is that 
+   * when an item from the list is destroyed, it will automatically get removed
+   * from the list.
+   *
+   * ## Creating a new Model List
+   *
+   * To create a new model list, just use `new {model_name}.List(ARRAY)` like:
+   *
+   *     var todo1 = new Todo( { name: "Do the dishes" } ),
+   *         todo2 = new Todo( { name: "Wash floors" } )
+   *     var todos = new Todo.List( [todo1, todo2] );
+   *
+   * ### Model Lists in `can.Model`
+   * In addition to creating new lists, it is possible to call 
+   * [can.Model.static.findAll can.Model.findAll] or [can.Model.models] to return
+   * a `can.Model.List` object.
+   *
+   *     var todos = Todo.models([
+   *         new Todo( { name: "Do the dishes" } ),
+   *         new Todo( { name: "Wash floors" } )
+   *     ])
+   *     
+   *     todos.constructor // -> can.Model.List
+   *
+   *     Todo.findAll({}, function(todos) {
+   *         todos.constructor // -> can.Model.List
+   *     })
+   *
+   * ### Extending `can.Model.List`
+   *
+   * Creating custom `can.Model.Lists` allows you to extend lists with helper
+   * functions for a list of a specific type. So, if there was a need to get a
+   * random todo item, something could be written like
+   *
+   *     can.Model.List('Todo.List', {
+   *         random: function() {
+   *             // return a random todo from the list.
+   *         }
+   *     })
+   *
+   *     var list = new Todo.List([
+   *         new Todo( { name: "Do the dishes" } ),
+   *         new Todo( { name: "Wash floors" } )
+   *     ]);
+   *
+   *     list.random() // -> random todo
+   *
+   *
+   * ## Removing models from model list
+   *
+   * The advantage that `can.Model.List` has over a traditional `can.Observe.List`
+   * is that when you destroy a model, if it is in that list, it will automatically
+   * be removed from the list. 
+   *
+   *     // Listen for when something is removed from the todos list.
+   *     todos.bind("remove", function( ev, oldVals, indx ) {
+   *         console.log(oldVals[indx].attr("name") + " removed")
+   *     })
+   *
+   *     todo1.destory(); // console shows "Do the dishes removed"
+   *
+   *
+   */
 	var ML = can.Observe.List('can.Model.List',{
 		setup : function(){
 			can.Observe.List.prototype.setup.apply(this, arguments );
@@ -3579,14 +3885,24 @@ can.dispatch = function(event){
 	extend(can.route, {
 		/**
 		 * @function can.route.param
-     * @parent can.route
+		 * @parent can.route
 		 * Parameterizes the raw JS object representation provided in data.
-		 * If a route matching the provided data is found that URL is built
-         * from the data. Any remaining data is added at the end of the
-         * URL as &amp; separated key/value parameters.
+		 *
+		 *     can.route.param( { type: "video", id: 5 } ) 
+		 *          // -> "type=video&id=5"
+		 *
+		 * If a route matching the provided data is found, that URL is built
+		 * from the data. Any remaining data is added at the end of the
+		 * URL as &amp; separated key/value parameters.
+		 *
+		 *     can.route(":type/:id")
+		 *     
+		 *     can.route.param( { type: "video", id: 5 } ) // -> "video/5"
+		 *     can.route.param( { type: "video", id: 5, isNew: false } ) 
+		 *          // -> "video/5&isNew=false"
 		 * 
-		 * @param {Object} data
-         * @return {String} The route URL and &amp; separated parameters.
+		 * @param {Object} data Data object containing key/value properies to be parameterized
+		 * @return {String} The route URL and &amp; separated parameters.
 		 */
 		param: function( data ) {
 			delete data.route;
@@ -3615,7 +3931,7 @@ can.dispatch = function(event){
 				var cpy = extend({}, data),
                     // Create the url by replacing the var names with the provided data.
                     // If the default value is found an empty string is inserted.
-				    res = route.route.replace(matcher, function( whole, name ) {
+					res = route.route.replace(matcher, function( whole, name ) {
                         delete cpy[name];
                         return data[name] === route.defaults[name] ? "" : encodeURIComponent( data[name] );
                     }),
@@ -3629,7 +3945,7 @@ can.dispatch = function(event){
 					
 					// The remaining elements of data are added as 
 					// `&amp;` separated parameters to the url.
-				    after = can.param(cpy);
+					after = can.param(cpy);
 				return res + (after ? "&" + after : "")
 			}
             // If no route was found, there is no hash URL, only paramters.
@@ -3637,13 +3953,38 @@ can.dispatch = function(event){
 		},
 		/**
 		 * @function can.route.deparam
-     * @parent can.route
+		 * @parent can.route
 		 * 
-		 * Populate the JS data object from a given URL.
+		 * Creates a data object based on the query string passed into it. This is 
+		 * useful to create an object based on the `location.hash`.
+		 *
+		 *     can.route.deparam("id=5&type=videos") 
+		 *          // -> { id: 5, type: "videos" }
+		 *
 		 * 
-		 * @param {Object} url
+		 * It's important to make sure the hash or exclamantion point is not passed
+		 * to `can.route.deparam` otherwise it will be included in the first property's
+		 * name.
+		 *
+		 *     can.route.attr("id", 5) // location.hash -> #!id=5
+		 *     can.route.attr("type", "videos") 
+		 *          // location.hash -> #!id=5&type=videos
+		 *     can.route.deparam(location.hash) 
+		 *          // -> { #!id: 5, type: "videos" }
+		 *
+		 * `can.route.deparam` will try and find a matching route and, if it does,
+		 * will deconstruct the URL and parse our the key/value parameters into the data object.
+		 *
+		 *     can.route(":type/:id")
+		 *
+		 *     can.route.deparam("videos/5");
+		 *          // -> { id: 5, route: ":type/:id", type: "videos" }
+		 *
+		 * @param {String} url Query string to be turned into an object.
+		 * @return {Object} Data object containing properties and values from the string
 		 */
 		deparam: function( url ) {
+			console.log('deparam', url)
 			// See if the url matches any routes by testing it against the `route.test` `RegExp`.
             // By comparing the URL length the most specialized route that matches is used.
 			var route = {
@@ -3697,7 +4038,7 @@ can.dispatch = function(event){
          * A list of routes recognized by the router indixed by the url used to add it.
          * Each route is an object with these members:
          * 
- 		 *  - test - A regular expression that will match the route when variable values 
+		 *  - test - A regular expression that will match the route when variable values 
          *    are present; i.e. for :page/:type the `RegExp` is /([\w\.]*)/([\w\.]*)/ which
          *    will match for any value of :page and :type (word chars or period).
 		 * 
@@ -3717,13 +4058,13 @@ can.dispatch = function(event){
 		 * based upon the routes and the current hash.
 		 * 
 		 * By default, ready is fired on jQuery's ready event.  Sometimes
-		 * you might want it to happen sooner or earlier.  To do this call
+		 * you might want it to happen sooner or earlier.  To do this, call:
 		 * 
 		 *     can.route.ready(false); //prevents firing by the ready event
 		 *     can.route.ready(true); // fire the first route change
 		 * 
-		 * @param {Boolean} [start]
-		 * @return can.route
+		 * @param {Boolean} [val] Whether or not to fire the ready event.
+		 * @return {can.route} `can.route` object.
 		 */
 		ready: function(val) {
 			if( val === false ) {
@@ -3738,10 +4079,25 @@ can.dispatch = function(event){
 		 * @function can.route.url
 		 * @parent can.route
 		 * 
-		 * Returns a url from the options
-		 * @param {Object} options
+		 * Similar to [can.route.link], but instead of creating an anchor tag, `can.route.url` creates 
+		 * only the URL based on the route options passed into it.
+		 *
+		 *     can.route.url( { type: "videos", id: 5 } ) 
+		 *          // -> "#!type=videos&id=5"
+		 *
+		 * If a route matching the provided data is found the URL is built from the data. Any remaining
+		 * data is added at the end of the URL as & separated key/value parameters.
+		 *
+		 *     can.route(":type/:id")
+		 *
+		 *     can.route.url( { type: "videos", id: 5 } ) // -> "#!videos/5"
+		 *     can.route.url( { type: "video", id: 5, isNew: false } ) 
+		 *          // -> "#!video/5&isNew=false"
+		 *
+		 *
+		 * @param {Object} options The route options (variables)
 		 * @param {Boolean} merge true if the options should be merged with the current options
-		 * @return {String} 
+		 * @return {String} The route URL & separated parameters
 		 */
 		url: function( options, merge ) {
 			if (merge) {
@@ -3753,12 +4109,39 @@ can.dispatch = function(event){
 		 * @function can.route.link
 		 * @parent can.route
 		 * 
-		 * Returns a link
+		 * Creates and returns an anchor tag with an href of the route 
+		 * attributes passed into it, as well as any properies desired
+		 * for the tag.
+		 *
+		 *     can.route.link( "My videos", { type: "videos" }, {}, false )
+		 *          // -> <a href="#!type=videos">My videos</a>
 		 * 
+		 * Other attributes besides href can be added to the anchor tag
+		 * by passing in a data object with the attributes desired.
+		 *
+		 *     can.route.link( "My videos", { type: "videos" }, 
+		 *       { className: "new" }, false ) 
+		 *          // -> <a href="#!type=videos" class="new">My Videos</a>
+		 *
+		 * It is possible to utilize the current route options when making anchor
+		 * tags in order to make your code more reusable. If merge is set to true,
+		 * the route options passed into `can.route.link` will be passed into the
+		 * current ones.
+		 *
+		 *     location.hash = "#!type=videos" 
+		 *     can.route.link( "The zoo", { id: 5 }, true )
+		 *          // -> <a href="#!type=videos&id=5">The zoo</true>
+		 *
+		 *     location.hash = "#!type=pictures" 
+		 *     can.route.link( "The zoo", { id: 5 }, true )
+		 *          // -> <a href="#!type=pictures&id=5">The zoo</true>
+		 *
+		 *
 		 * @param {Object} name The text of the link.
 		 * @param {Object} options The route options (variables)
 		 * @param {Object} props Properties of the &lt;a&gt; other than href.
-         * @param {Boolean} merge true if the options should be merged with the current options
+		 * @param {Boolean} merge true if the options should be merged with the current options
+		 * @return {string} String containing the formatted &lt;a&gt; HTML element
 		 */
 		link: function( name, options, props, merge ) {
 			return "<a " + makeProps(
@@ -3770,10 +4153,22 @@ can.dispatch = function(event){
 		 * @function can.route.current
 		 * @parent can.route
 		 * 
-		 * Returns true if the options represent the current page.
+		 * Checks the page's current URL to see if the route represents the options passed 
+		 * into the function.
+		 *
+		 * Returns true if the options respresent the current URL.
 		 * 
-		 * @param {Object} options
-         * @return {Boolean}
+		 *     can.route.attr('id', 5) // location.hash -> "#!id=5"
+		 *     can.route.current({ id: 5 }) // -> true
+		 *     can.route.current({ id: 5, type: 'videos' }) // -> false
+		 *     
+		 *     can.route.attr('type', 'videos') 
+		 *            // location.hash -> #!id=5&type=videos
+		 *     can.route.current({ id: 5, type: 'videos' }) // -> true
+		 * 
+		 * 
+		 * @param {Object} options Data object containing properties and values that might represent the route.
+         * @return {Boolean} Whether or not the options match the current URL.
 		 */
 		current: function( options ) {
 			return location.hash == "#!" + can.route.param(options)
@@ -3797,7 +4192,7 @@ can.dispatch = function(event){
         // Deparameterizes the portion of the hash of interest and assign the
         // values to the `can.route.data` removing existing values no longer in the hash.
         setState = function() {
-			curParams = can.route.deparam( location.hash.split(/#!?/).pop() );
+			curParams = can.route.deparam( location.hash.split(/#!?/).pop() || "" );
 			can.route.attr(curParams, true);
 		};
 
@@ -3870,13 +4265,13 @@ can.dispatch = function(event){
 	 * @Static
 	 */
 	{
+		// Setup pre-processes which methods are event listeners.
 		/**
 		 * @hide
 		 * 
 		 * Setup pre-process which methods are event listeners.
 		 * 
 		 */
-		// Setup pre-processes which methods are event listeners.
 		setup: function() {
 
 			// Allow contollers to inherit "defaults" from super-classes as it 
@@ -3903,15 +4298,18 @@ can.dispatch = function(event){
 				}
 			}
 		},
+		// Return `true` if is an action.
 		/**
 		 * @hide
 		 * @param {String} methodName a prototype function
 		 * @return {Boolean} truthy if an action or not
 		 */
-		// Return `true` if is an action.
 		_isAction: function( methodName ) {
 			return !! ( special[methodName] || processors[methodName] || /[^\w]/.test(methodName) );
 		},
+		// Takes a method name and the options passed to a control
+		// and tries to return the data necessary to pass to a processor
+		// (something that binds things).
 		/**
 		 * @hide
 		 * Takes a method name and the options passed to a control
@@ -3933,9 +4331,6 @@ can.dispatch = function(event){
 		 * @return {Object} null or the processor and pre-split parts.  
 		 * The processor is what does the binding/subscribing.
 		 */
-		 // Takes a method name and the options passed to a control
-		 // and tries to return the data necessary to pass to a processor
-		 // (something that binds things).
 		_action: function( methodName, options ) {
 			
 			// If we don't have options (a `control` instance), we'll run this 
@@ -3963,6 +4358,8 @@ can.dispatch = function(event){
 				};
 			}
 		},
+		// An object of `{eventName : function}` pairs that Control uses to 
+		// hook up events auto-magically.
 		/**
 		 * @attribute processors
 		 * An object of `{eventName : function}` pairs that Control uses to hook up events
@@ -4017,9 +4414,9 @@ can.dispatch = function(event){
 		 *     
 		 *     new Sized( $( '#foo' ) );
 		 */
-		// An object of `{eventName : function}` pairs that Control uses to 
-		// hook up events auto-magically.
 		processors: {},
+		// A object of name-value pairs that act as default values for a 
+		// control instance
 		/**
 		 * @attribute defaults
 		 * A object of name-value pairs that act as default values for a control's 
@@ -4041,14 +4438,14 @@ can.dispatch = function(event){
 		 * In [can.Control::setup] the options passed to the control
 		 * are merged with defaults.  This is not a deep merge.
 		 */
-		// A object of name-value pairs that act as default values for a 
-		// control instance
 		defaults: {}
 	},
 	/** 
 	 * @Prototype
 	 */
 	{
+		// Sets `this.element`, saves the control in `data, binds event
+		// handlers.
 		/**
 		 * Setup is where most of control's magic happens.  It does the following:
 		 * 
@@ -4086,11 +4483,11 @@ can.dispatch = function(event){
 		 * @return {Array} return an array if you wan to change what init is called with. By
 		 * default it is called with the element and options passed to the control.
 		 */
-		// Where the magic happens.
 		setup: function( element, options ) {
 
 			var cls = this.constructor,
-				pluginname = cls.pluginName || cls._fullName;
+				pluginname = cls.pluginName || cls._fullName,
+				arr;
 
 			// Want the raw element here.
 			this.element = can.$(element)
@@ -4100,8 +4497,10 @@ can.dispatch = function(event){
 				this.element.addClass(pluginname);
 			}
 			
-			(can.data(this.element,"controls")) || can.data(this.element,"controls", [ this ]);
+			(arr = can.data(this.element,"controls")) || can.data(this.element,"controls",arr = []);
+			arr.push(this);
 			
+			// Option merging.
 			/**
 			 * @attribute options
 			 * 
@@ -4143,12 +4542,12 @@ can.dispatch = function(event){
 			 * [can.Control.prototype.update update];
 			 *
 			 */
-			// Option merging.
 			this.options = extend({}, cls.defaults, options);
 
 			// Bind all event handlers.
 			this.on();
 
+			// Get's passed into `init`.
 			/**
 			 * @attribute element
 			 * 
@@ -4248,7 +4647,6 @@ can.dispatch = function(event){
 			 *        this.on();
 			 *     }
 			 */
-			// Get's passed into `init`.
 			return [this.element, this.options];
 		},
 		/**
@@ -4389,12 +4787,12 @@ can.dispatch = function(event){
 
 			return this._bindings.length;
 		},
+		// Unbinds all event handlers on the controller.
 		/**
 		 * @hide
 		 * Unbinds all event handlers on the controller. You should never
 		 * be calling this unless in use with [can.Control::on].
 		 */
-		// Unbinds all event handlers on the controller.
 		off : function(){
 			var el = this.element[0]
 			each(this._bindings || [], function( key, value ) {
@@ -4403,7 +4801,9 @@ can.dispatch = function(event){
 			// Adds bindings.
 			this._bindings = [];
 		},
+		// Prepares a `control` for garbage collection
 		/**
+		 * @function destroy
 		 * `destroy` prepares a control for garbage collection and is a place to
 		 * reset any changes the control has made.  
 		 * 
@@ -4494,8 +4894,6 @@ can.dispatch = function(event){
 		 *   - removing it's [can.Control.pluginName] from the element's className
 		 * 
 		 */
-
-		// Prepares a `control` for garbage collection
 		destroy: function() {
 			var Class = this.constructor,
 				pluginName = Class.pluginName || Class._fullName,
@@ -4996,6 +5394,7 @@ can.dispatch = function(event){
 		bracketNum = function(content){
 			return (--content.split("{").length) - (--content.split("}").length);
 		},
+		// Cross-browser attribute methods.
 		setAttr = function(el, attrName, val){
 			attrName === "class" ?
 				(el.className = val):
@@ -5006,22 +5405,33 @@ can.dispatch = function(event){
 				el.className:
 				el.getAttribute(attrName);
 		},
-		// Used to bind to an `observe` and unbind when the element is removed.
-		// `oldObserved` is a mapping of `observe` namespaces to instances.
+		// This is used to setup live binding on a list of observe/attribute
+		// pairs for a given element.
+		//  - observed - an array of observe/attribute
+		//  - el - the parent element, if removed, unbinds all observes
+		//  - cb - a callback function that gets called if any observe/attribute changes
+		//  - oldObserve - a mapping of observe/attributes already bound
 		liveBind = function( observed, el, cb, oldObserved ) {
-			// We are going to set everything to matched that we find.
+			// record if this is the first liveBind call for this magic tag
 			var first = oldObserved.matched === undefined;
+			// toggle the 'matched' indicator
 			oldObserved.matched = !oldObserved.matched;
+			
 			can.each(observed, function(i, ob){
+				// if the observe/attribute pair is being observed
 				if(oldObserved[ob.obj._namespace+"|"+ob.attr]){
+					// mark at as observed
 					oldObserved[ob.obj._namespace+"|"+ob.attr].matched = oldObserved.matched;
 				} else {
+					// otherwise, set the observe/attribute on oldObserved, marking it as being observed
 					ob.matched = oldObserved.matched;
 					oldObserved[ob.obj._namespace+"|"+ob.attr] = ob
+					// call `cb` when `attr` changes on the observe
 					ob.obj.bind(ob.attr, cb)
 				}
 			})
-			// Remove any old bindings.
+			// Iterate through oldObserved, looking for observe/attributes
+			// that are no longer being bound and unbind them
 			for ( var name in oldObserved ) {
 				var ob = oldObserved[name];
 				if(name !== "matched" && ob.matched !== oldObserved.matched){
@@ -5030,6 +5440,9 @@ can.dispatch = function(event){
 				}
 			}
 			if(first){
+				// If this is the first time binding, listen
+				// for the element to be destroyed and unbind
+				// all event handlers for garbage collection.
 				can.bind.call(el,'destroyed', function(){
 					can.each(oldObserved, function(i, ob){
 						if(typeof ob !== 'boolean'){
@@ -5040,12 +5453,13 @@ can.dispatch = function(event){
 			}
 
 		},
+		// Returns escaped/sanatized content for anything other than a live-binding
 		contentEscape = function( txt ) {
-			// Return sanatized text.
 			return (typeof txt == 'string' || typeof txt == 'number') ?
 				can.esc( txt ) :
 				contentText(txt);
 		},
+		// Returns text content for anything other than a live-binding 
 		contentText =  function( input ) {	
 			
 			// If it's a string, return.
@@ -5078,155 +5492,43 @@ can.dispatch = function(event){
 			// Finally, if all else is `false`, `toString()` it.
 			return "" + input;
 		},
+		// Returns the return value of a "wrapping" function and any
+		// observe attribute properties that were read.
+		// A wrapping function is the function that gets put around
+		// a magic tag.  For example, `<%= task.attr() %>` becomes
+		// `function(){ return task.attr() }`.  
 		getValueAndObserved = function(func, self){
+			// Set a callback on can.Observe to know
+			// when an attr is read.
 			if (can.Observe) {
 				can.Observe.__reading = function(obj, attr){
+					// Add the observe and attr that was read
+					// to `observed`
 					observed.push({
 						obj: obj,
 						attr: attr
 					});
 				}
 			}
-			// Get value.
+			
 			var observed = [],
-				input = func.call(self);
+				// Call the "wrapping" function to get the value. `observed`
+				// will have the observe/attribute pairs that were read.
+				value = func.call(self);
 	
 			// Set back so we are no longer reading.
 			if(can.Observe){
 				delete can.Observe.__reading;
 			}
 			return {
-				value : input,
+				value : value,
 				observed : observed
 			}
 		},
-		/**
-		 * @class can.EJS
-		 * 
-		 * @plugin can/view/ejs
-		 * @parent can.View
-		 * @download  http://jmvcsite.heroku.com/pluginify?plugins[]=can/view/ejs/ejs.js
-		 * @test can/view/ejs/qunit.html
-		 * 
-		 * 
-		 * Ejs provides <a href="http://www.ruby-doc.org/stdlib/libdoc/erb/rdoc/">ERB</a> 
-		 * style client side templates.  Use them with controllers to easily build html and inject
-		 * it into the DOM.
-		 * 
-		 * ###  Example
-		 * 
-		 * The following generates a list of tasks:
-		 * 
-		 * @codestart html
-		 * &lt;ul>
-		 * &lt;% for(var i = 0; i < tasks.length; i++){ %>
-		 *     &lt;li class="task &lt;%= tasks[i].identity %>">&lt;%= tasks[i].name %>&lt;/li>
-		 * &lt;% } %>
-		 * &lt;/ul>
-		 * @codeend
-		 * 
-		 * For the following examples, we assume this view is in <i>'views\tasks\list.ejs'</i>.
-		 * 
-		 * 
-		 * ## Use
-		 * 
-		 * ### Loading and Rendering EJS:
-		 * 
-		 * You should use EJS through the helper functions [jQuery.View] provides such as:
-		 * 
-		 *   - [jQuery.fn.after after]
-		 *   - [jQuery.fn.append append]
-		 *   - [jQuery.fn.before before]
-		 *   - [jQuery.fn.html html], 
-		 *   - [jQuery.fn.prepend prepend],
-		 *   - [jQuery.fn.replaceWith replaceWith], and 
-		 *   - [jQuery.fn.text text].
-		 * 
-		 * or [Can.Control.prototype.view].
-		 * 
-		 * ### Syntax
-		 * 
-		 * EJS uses 5 types of tags:
-		 * 
-		 *   - <code>&lt;% CODE %&gt;</code> - Runs JS Code.
-		 *     For example:
-		 *     
-		 *         <% alert('hello world') %>
-		 *     
-		 *   - <code>&lt;%= CODE %&gt;</code> - Runs JS Code and writes the _escaped_ result into the result of the template.
-		 *     For example:
-		 *     
-		 *         <h1><%= 'hello world' %></h1>
-		 *         
-		 *   - <code>&lt;%== CODE %&gt;</code> - Runs JS Code and writes the _unescaped_ result into the result of the template.
-		 *     For example:
-		 *     
-		 *         <h1><%== '<span>hello world</span>' %></h1>
-		 *         
-		 *   - <code>&lt;%%= CODE %&gt;</code> - Writes <%= CODE %> to the result of the template.  This is very useful for generators.
-		 *     
-		 *         <%%= 'hello world' %>
-		 *         
-		 *   - <code>&lt;%# CODE %&gt;</code> - Used for comments.  This does nothing.
-		 *     
-		 *         <%# 'hello world' %>
-		 *        
-		 * ## Hooking up controllers
-		 * 
-		 * After drawing some html, you often want to add other widgets and plugins inside that html.
-		 * View makes this easy.  You just have to return the Contoller class you want to be hooked up.
-		 * 
-		 * @codestart
-		 * &lt;ul &lt;%= Mxui.Tabs%>>...&lt;ul>
-		 * @codeend
-		 * 
-		 * You can even hook up multiple controllers:
-		 * 
-		 * @codestart
-		 * &lt;ul &lt;%= [Mxui.Tabs, Mxui.Filler]%>>...&lt;ul>
-		 * @codeend
-		 * 
-		 * To hook up a controller with options or any other jQuery plugin use the
-		 * [can.EJS.Helpers.prototype.plugin | plugin view helper]:
-		 * 
-		 * @codestart
-		 * &lt;ul &lt;%= plugin('mxui_tabs', { option: 'value' }) %>>...&lt;ul>
-		 * @codeend
-		 * 
-		 * Don't add a semicolon when using view helpers.
-		 * 
-		 * 
-		 * <h2>View Helpers</h2>
-		 * View Helpers return html code.  View by default only comes with 
-		 * [can.EJS.Helpers.prototype.view view] and [can.EJS.Helpers.prototype.text text].
-		 * You can include more with the view/helpers plugin.  But, you can easily make your own!
-		 * Learn how in the [can.EJS.Helpers Helpers] page.
-		 * 
-		 * @constructor Creates a new view
-		 * @param {Object} options A hash with the following options
-		 * <table class="options">
-		 *     <tbody><tr><th>Option</th><th>Default</th><th>Description</th></tr>
-		 *     <tr>
-		 *      <td>text</td>
-		 *      <td>&nbsp;</td>
-		 *      <td>uses the provided text as the template. Example:<br/><code>new View({text: '&lt;%=user%>'})</code>
-		 *      </td>
-		 *     </tr>
-		 *     <tr>
-		 *      <td>type</td>
-		 *      <td>'<'</td>
-		 *      <td>type of magic tags.  Options are '&lt;' or '['
-		 *      </td>
-		 *     </tr>
-		 *     <tr>
-		 *      <td>name</td>
-		 *      <td>the element ID or url </td>
-		 *      <td>an optional name that is used for caching.
-		 *      </td>
-		 *     </tr>
-		 *    </tbody></table>
-		 */
+		// The EJS constructor function
 		EJS = function( options ) {
+			// Supports calling EJS without the constructor
+			// This returns a function that renders the template.
 			if ( this.constructor != EJS ) {
 				var ejs = new EJS(options);
 				return function( data, helpers ) {
@@ -5270,6 +5572,16 @@ can.dispatch = function(event){
 	 * @Static
 	 */
 	extend(EJS, {
+		// Called to return the content within a magic tag like `<%= %>`.
+		// - escape - if the content returned should be escaped
+		// - tagName - the tag name the magic tag is within or the one that proceeds the magic tag
+		// - status - where the tag is in.  The status can be:
+		//    - _STRING_ - The name of the attribute the magic tag is within
+		//    - `1` - The magic tag is within a tag like `<div <%= %>>`
+		//    - `0` - The magic tag is outside (or between) tags like `<div><%= %></div>`
+		// - self - the `this` the template was called with
+		// - func - the "wrapping" function.  For example:  `<%= task.attr('name') %>` becomes
+		//   `(function(){return task.attr('name')})
 		/**
 		 * @hide
 		 * called to setup unescaped text
@@ -5281,29 +5593,33 @@ can.dispatch = function(event){
 		 * @param {Object} self
 		 * @param {Object} func
 		 */
-		txt : function(tagName, status, self, func, escape){
-			// Set callback on reading...
+		txt : function(escape, tagName, status, self, func){
+			// Get teh value returned by the wrapping function and any observe/attributes read.
 			var res = getValueAndObserved(func, self),
 				observed = res.observed,
-				input = res.value,
+				value = res.value,
+				// Contains the bindings this magic tag will make.  Used when 
+				// `func` might dynamically change what it is binding to.
 				oldObserved = {},
+				// The tag type to create within the parent tagName
 				tag = (tagMap[tagName] || "span");
 	
 
 
-			// If we had no observes.
+			// If we had no observes just return the value returned by func.
 			if(!observed.length){
-				return (escape || status !== 0? contentEscape : contentText)(input);
+				return (escape || status !== 0? contentEscape : contentText)(value);
 			}
-
+			// The magic tag is outside or between tags.
 			if(status == 0){
+				// Return an element tag with a hookup in place of the content
 				return "<" +tag+can.view.hook(
-				// Are we escaping?
 				escape ? 
+					// If we are escaping, replace the parentNode with 
+					// a text node who's value is `func`'s return value.
 					function(el){
-						// Remove child, bind on parent.
 						var parent = el.parentNode,
-							node = document.createTextNode(input),
+							node = document.createTextNode(value),
 							binder = function(){
 								var res = getValueAndObserved(func, self);
 								node.nodeValue = ""+res.value;
@@ -5312,17 +5628,17 @@ can.dispatch = function(event){
 						
 						parent.insertBefore(node, el);
 						parent.removeChild(el);
-						
-						// Create `textNode`.
 						liveBind(observed, parent, binder,oldObserved);
-					}
+					} 
 					:
+					// If we are not escaping, replace the parentNode with a
+					// documentFragment created as with `func`'s return value.
 					function(span){
-						// Remove child, bind on parent.
+						// A helper function to manage inserting the contents
+						// and removing the old contents
 						var makeAndPut = function(val, remove){
-								// Get `fragment` of html to `fragment`.
+							
 								var frag = can.view.frag(val),
-									// Wrap it to keep a reference to the elements...
 									nodes = can.map(frag.childNodes,function(node){
 										return node;
 									}),
@@ -5339,22 +5655,19 @@ can.dispatch = function(event){
 								can.remove( can.$(remove) );
 								return nodes;
 							},
-							nodes = makeAndPut(input, [span]);
-						// Listen to changes and update. 
-						// Make sure the parent does not die.
-						// We might simply check that nodes is still in the `document` 
-						// before a write...
+							nodes = makeAndPut(value, [span]);
+
 						var binder = function(){
 							var res = getValueAndObserved(func, self);
 							nodes = makeAndPut(res.value, nodes);
-							
 							liveBind(res.observed, span.parentNode, binder ,oldObserved);
 						}
 						liveBind(observed, span.parentNode, binder ,oldObserved);
 				}) + "></" +tag+">";
-			} else if(status === 1){ // In a tag.
-				// Mark at end!
-				var attrName = input.replace(/['"]/g, '').split('=')[0];
+			// In a tag, but not in an attribute
+			} else if(status === 1){ 
+				// remember the old attr name
+				var attrName = value.replace(/['"]/g, '').split('=')[0];
 				pendingHookups.push(function(el) {
 					var binder = function() {
 						var res = getValueAndObserved(func, self),
@@ -5367,7 +5680,8 @@ can.dispatch = function(event){
 						}
 						// Set if we have a new `attrName`.
 						if(newAttrName){
-							setAttr(el, newAttrName, parts[1])
+							setAttr(el, newAttrName, parts[1]);
+							attrName = newAttrName;
 						}
 						liveBind(res.observed, el, binder,oldObserved);
 					}
@@ -5375,7 +5689,7 @@ can.dispatch = function(event){
 					liveBind(observed, el, binder,oldObserved);
 				});
 
-				return input;
+				return value;
 			} else { // In an attribute...
 				pendingHookups.push(function(el){
 					var wrapped = can.$(el),
@@ -5427,7 +5741,7 @@ can.dispatch = function(event){
 					hook = hooks[status];
 
 					// Insert the value in parts.
-					parts.splice(1,0,input);
+					parts.splice(1,0,value);
 
 					// Set the attribute.
 					setAttr(el, status, parts.join(""));
@@ -5437,10 +5751,6 @@ can.dispatch = function(event){
 				})
 				return "__!!__";
 			}
-		},
-		// Called to setup escaped text.
-		esc : function(tagName, status, self, func){
-			return EJS.txt(tagName, status, self, func, true)
 		},
 		pending: function() {
 			if(pendingHookups.length) {
@@ -5516,6 +5826,8 @@ can.dispatch = function(event){
 				magicInTag = false,
 				// The current tag name.
 				tagName = '',
+				// stack of tagNames
+				tagNames = [],
 				// Declared here.
 				bracketCount,
 				i = 0,
@@ -5581,8 +5893,15 @@ can.dispatch = function(event){
 							}
 						}
 					default:
+						// Track the current tag
 						if(lastToken === '<'){
 							tagName = token.split(' ')[0];
+							// If 
+							if( tagName.indexOf("/") === 0 && tagNames.pop() === tagName.substr(1) ) {
+								tagName = tagNames[tagNames.length-1]|| tagName.substr(1)
+							} else {
+								tagNames.push(tagName);
+							}
 						}
 						content += token;
 						break;
@@ -5604,7 +5923,7 @@ can.dispatch = function(event){
 							if (bracketCount == 1) {
 
 								// We are starting on.
-								buff.push(insert_cmd, "can.EJS.txt('"+tagName+"'," + status() + ",this,function(){", startTxt, content);
+								buff.push(insert_cmd, "can.EJS.txt(0,'"+tagName+"'," + status() + ",this,function(){", startTxt, content);
 								
 								endStack.push({
 									before: "",
@@ -5652,7 +5971,7 @@ can.dispatch = function(event){
 							
 							// If we have `<%== a(function(){ %>` then we want
 							// `can.EJS.text(0,this, function(){ return a(function(){ var _v1ew = [];`.
-							buff.push(insert_cmd, "can.EJS."+(startTag === '<%=' ? "esc" : "txt")+"('"+tagName+"'," + status()+",this,function(){ return ", content, 
+							buff.push(insert_cmd, "can.EJS.txt("+(startTag === '<%=' ? 1 : 0)+",'"+tagName+"'," + status()+",this,function(){ return ", content, 
 								// If we have a block.
 								bracketCount ? 
 								// Start with startTxt `"var _v1ew = [];"`.
@@ -5770,4 +6089,7 @@ can.dispatch = function(event){
 			});
 		}
 	});
+
+return can;
+});
 })(can = {}, this )
