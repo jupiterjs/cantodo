@@ -52,7 +52,7 @@ steal('funcunit', 'funcunit/qunit').then(function() {
 		}
 	};
 	
-	module('js/todo.js', {
+	module('todo.js', {
 		setup: function() {
 			S.open('../' + library);
 			S('#todoapp').then(function(el) {
