@@ -4,8 +4,7 @@ require({
     	location: location.pathname.replace(/\/[^/]+$/, ""),
     	main: "can.dojo"
 	}]
-})
-require(['can/dojo', 
+}, ['can/dojo', 
 	"dojo/dom", 
 	"dojo/dom-construct", 
 	"dojo/dom-attr", 
