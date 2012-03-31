@@ -173,7 +173,7 @@ Todos = can.Control({
 		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
 		});
-		$$('#todo-list .todo .toggle').set('checked', toggle);
+		this.element.getElements('#todo-list .todo .toggle').set('checked', toggle);
 	},
 	
 	// Listen for removing all completed Todos
@@ -185,7 +185,7 @@ Todos = can.Control({
 		
 	// Update statistics on change in the Todo list
 	'{todos} change' : function(){
-		$$('#toggle-all').set('checked', this.options.todos.allComplete());
+		this.element.getElement('#toggle-all').set('checked', this.options.todos.allComplete());
 	}
 
 })

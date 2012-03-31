@@ -171,7 +171,7 @@ Todos = can.Control({
 		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
 		});
-		$('#todo-list .todo .toggle').each(function(i, el) {
+		this.element.find('#todo-list .todo .toggle').each(function(i, el) {
 			el.checked = toggle;
 		});
 	},
@@ -185,7 +185,7 @@ Todos = can.Control({
 		
 	// Update statistics on change in the Todo list
 	'{todos} change' : function(){
-		$('#toggle-all')[0].checked = this.options.todos.allComplete();
+		this.element.find('#toggle-all')[0].checked = this.options.todos.allComplete();
 	}
 
 })
