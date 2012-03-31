@@ -6,7 +6,7 @@
 			<li class="todo 
 				<%= todo.attr("complete") ? "done" : "" %> 
 				<%= todo.attr("editing") ? "editing" : "" %>" 
-				<%= (el)-> can.data(can.$(el), 'todo', todo) %>>
+				<%= (el)-> can.data(el, 'todo', todo) %>>
 				<div class="view">
 					<input class="toggle" type="checkbox" <%= todo.attr("complete") ? "checked" : "" %>>
 					<label><%= todo.attr("text") %></label>
