@@ -5,6 +5,7 @@ This project contains a collection of [TodoMVC](https://github.com/addyosmani/to
 ### Demos
 
 - [jquery](http://donejs.com/examples/todo/jquery/): CanJS with jQuery
+- [jquery-widget](http://donejs.com/examples/todo/jquery-widget/): CanJS with jQuery (includes a jQuery UI widget binding example)
 - [dojo](http://donejs.com/examples/todo/dojo/): CanJS with Dojo
 - [dojo-widget](http://donejs.com/examples/todo/dojo-widget/): CanJS with Dojo (includes a Dojo widget binding example)
 - [mootools](http://donejs.com/examples/todo/mootools/): CanJS with Mootools
@@ -20,13 +21,14 @@ To get these demos:
 ```git clone git@github.com:jupiterjs/cantodo.git```
 2. Run these demos on a local server. Open the corresponding, self-named, demo page:
 
-	- `jquery`: `/jquery/index.html`
-	- `dojo`: `/dojo/index.html`
-	- `dojo-widget`: `/dojo-widget/index.html`
-	- `mootools`: `/mootools/index.html`
-	- `yui`: `/yui/index.html`
-	- `yui-widget`: `/yui-widget/index.html`
-	- `zepto`: `/zepto/index.html`
+	- `jquery`: `jquery/index.html`
+	- `jquery-widget`: `jquery-widget/index.html`
+	- `dojo`: `dojo/index.html`
+	- `dojo-widget`: `dojo-widget/index.html`
+	- `mootools`: `mootools/index.html`
+	- `yui`: `yui/index.html`
+	- `yui-widget`: `yui-widget/index.html`
+	- `zepto`: `zepto/index.html`
 
 You can also use the [links above][demos] to view the demos live on donejs.com.
 
@@ -42,6 +44,7 @@ To run the unit tests:
 
 	- `all frameworks`: `test/index.html`
 	- `jquery`: `test/jquery.html`
+	- `jquery-widget`: `test/jquery-widget.html`
 	- `dojo`: `test/dojo.html`
 	- `dojo-widget`: `test/dojo-widget.html`
 	- `mootools`: `test/mootools.html`

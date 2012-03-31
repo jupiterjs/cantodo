@@ -1,6 +1,8 @@
 steal()
 .then(function() { TODOLIB = 'jquery'; })
 .then('test.js?jquery')
+.then(function() { TODOLIB = 'jquery-widget'; })
+.then('test_jquery-widget.js')
 .then(function() { TODOLIB = 'dojo'; })
 .then('test.js?dojo')
 .then(function() { TODOLIB = 'dojo-widget'; })
