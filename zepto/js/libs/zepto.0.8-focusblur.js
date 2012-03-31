@@ -2,6 +2,9 @@
 //     (c) 2010, 2011 Thomas Fuchs
 //     Zepto.js may be freely distributed under the MIT license.
 
+// Zepto 0.8 with patch for focus/blur delegate support
+//   https://github.com/madrobby/zepto/commit/ab2a3ef0d18beaf768903f0943efd019a29803f0
+
 (function(undefined){
   if (String.prototype.trim === undefined) // fix for iOS 3.2
     String.prototype.trim = function(){ return this.replace(/^\s+/, '').replace(/\s+$/, '') };
@@ -540,7 +543,8 @@ window.Zepto = Zepto;
     else events.split(/\s/).forEach(function(type){ iterator(type, fn) });
   }
 
-  function add(element, events, fn, selector, getDelegate){
+	function add(element, events, fn, selector, getDelegate, capture){
+		capture = !!capture;
     var id = zid(element), set = (handlers[id] || (handlers[id] = []));
     eachEvent(events, fn, function(event, fn){
       var delegate = getDelegate && getDelegate(fn, event),
@@ -552,7 +556,7 @@ window.Zepto = Zepto;
       };
       var handler = $.extend(parse(event), {fn: fn, proxy: proxyfn, sel: selector, del: delegate, i: set.length});
       set.push(handler);
-      element.addEventListener(handler.e, proxyfn, false);
+      element.addEventListener(handler.e, proxyfn, capture);
     });
   }
   function remove(element, events, fn, selector){
@@ -621,6 +625,14 @@ window.Zepto = Zepto;
   }
 
   $.fn.delegate = function(selector, event, callback){
+    var capture = false;
+    if(event == 'blur' || event == 'focus'){
+      if($.iswebkit)
+        event = event == 'blur' ? 'focusout' : event == 'focus' ? 'focusin' : event;
+      else
+        capture = true;
+    }
+
     return this.each(function(i, element){
       add(element, event, callback, selector, function(fn){
         return function(e){
@@ -630,7 +642,7 @@ window.Zepto = Zepto;
             return fn.apply(match, [evt].concat([].slice.call(arguments, 1)));
           }
         }
-      });
+      }, capture);
     });
   };
   $.fn.undelegate = function(selector, event, callback){
