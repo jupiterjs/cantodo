@@ -5,15 +5,15 @@ steal('test.js?yui-widget').then(function() {
 		months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 		selectDay = function(diff) {
 			// Reset the calendar to the current month
-			S('#calendar .yui3-calendar-header-label h4').then(function(el) {
+			S('#calendar .ui-datepicker-month').then(function(el) {
 				if (el[0].innerHTML.indexOf(months[todayMonth]) == -1) {
 					var prevMonth = (todayMonth - 1 >= 0) ? todayMonth - 1 : 11,
 						nextMonth = (todayMonth + 1 <= 11) ? todayMonth + 1 : 0;
 					if (el[0].innerHTML.indexOf(months[prevMonth]) > -1) {
-						S('#calendar .yui3-calendarnav-nextmonth').click();	
+						S('#calendar .ui-datepicker-next').click();	
 					}
 					else if (el[0].innerHTML.indexOf(months[nextMonth]) > -1) {
-						S('#calendar .yui3-calendarnav-prevmonth').click();	
+						S('#calendar .ui-datepicker-prev').click();	
 					}
 				}
 			});
@@ -23,15 +23,15 @@ steal('test.js?yui-widget').then(function() {
 			diffDate.setDate(diffDate.getDate() + diff);
 			if (diffDate.getMonth() != today.getMonth()) {
 				if (diffDate.getMonth() < today.getMonth() || (today.getMonth() == 0 && diffDate.getMonth() == 11)) {
-					S('#calendar .yui3-calendarnav-prevmonth').click();	
+					S('#calendar .ui-datepicker-prev').click();	
 				}
 				else if (diffDate.getMonth() > today.getMonth() || (today.getMonth() == 11 && diffDate.getMonth() == 0)) {
-					S('#calendar .yui3-calendarnav-nextmonth').click();	
+					S('#calendar .ui-datepicker-next').click();	
 				}
 			}
 			
 			// Select the proper day
-			S('#calendar .yui3-calendar-day:not(.yui3-calendar-column-hidden)').then(function(el) {
+			S('#calendar .ui-datepicker-calendar tbody a').then(function(el) {
 				for (var i = 0; i < el.length; i++) {
 					if (el[i].innerHTML == diffDate.getDate()) {
 						S(el[i]).click();
