@@ -2,7 +2,6 @@ steal('test.js?yui-widget').then(function() {
 	
 	var today = new Date(),
 		todayMonth = new Date().getMonth(),
-		currentMonth = todayMonth,
 		months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
 		selectDay = function(diff) {
 			// Reset the calendar to the current month
@@ -18,29 +17,24 @@ steal('test.js?yui-widget').then(function() {
 					}
 				}
 			});
+			
+			// Switch the month if necessary
+			var diffDate = new Date();
+			diffDate.setDate(diffDate.getDate() + diff);
+			if (diffDate.getMonth() != today.getMonth()) {
+				if (diffDate.getMonth() < today.getMonth() || (today.getMonth() == 0 && diffDate.getMonth() == 11)) {
+					S('#calendar .yui3-calendarnav-prevmonth').click();	
+				}
+				else if (diffDate.getMonth() > today.getMonth() || (today.getMonth() == 11 && diffDate.getMonth() == 0)) {
+					S('#calendar .yui3-calendarnav-nextmonth').click();	
+				}
+			}
+			
 			// Select the proper day
 			S('#calendar .yui3-calendar-day:not(.yui3-calendar-column-hidden)').then(function(el) {
 				for (var i = 0; i < el.length; i++) {
-					if (el[i].innerHTML == today.getDate()) {
-						if (el[i+diff]) {
-							S(el[i+diff]).click();
-						}
-						// Handle case where the requested day shifted to a different month
-						else {
-							var text = new Date();
-							text.setDate(text.getDate() + diff);
-							text = text.getDate();
-							currentMonth += diff > 0 ? 1 : -1;
-							today.setMonth(currentMonth);
-							S('#calendar .yui3-calendarnav-' + (diff > 0 ? 'next' : 'prev') + 'month').click();
-							S('#calendar .yui3-calendar-day:not(.yui3-calendar-column-hidden)').then(function(el) {
-								for (var k = 0; k < el.length; k++) {
-									if (el[k].innerHTML == text) {
-										S(el[k]).click();
-									}
-								}
-							});
-						}
+					if (el[i].innerHTML == diffDate.getDate()) {
+						S(el[i]).click();
 						break;
 					}
 				}
@@ -72,15 +66,17 @@ steal('test.js?yui-widget').then(function() {
 		// Set due date to the future
 		S('#todo-list .todo:nth-child(1) .due-date').click();
 		selectDay(2);
-		today.setDate(today.getDate()+2);
-		S('#todo-list .todo:nth-child(1) .date').text((today.getMonth()+1)+'/'+today.getDate()+'/'+today.getFullYear(), 'due date is in the future');
+		var future = new Date();
+		future.setDate(future.getDate()+2);
+		S('#todo-list .todo:nth-child(1) .date').text((future.getMonth()+1)+'/'+future.getDate()+'/'+future.getFullYear(), 'due date is in the future');
 		S('#todo-list .todo:nth-child(1) .date').hasClass('late', false, 'future due date is on time');
 		
 		// Set due date to the past
 		S('#todo-list .todo:nth-child(1) .due-date').click();
 		selectDay(-2);
-		today.setDate(today.getDate()-4);
-		S('#todo-list .todo:nth-child(1) .date').text((today.getMonth()+1)+'/'+today.getDate()+'/'+today.getFullYear(), 'due date is in the past');
+		var past = new Date();
+		past.setDate(past.getDate()-2);
+		S('#todo-list .todo:nth-child(1) .date').text((past.getMonth()+1)+'/'+past.getDate()+'/'+past.getFullYear(), 'due date is in the past');
 		S('#todo-list .todo:nth-child(1) .date').hasClass('late', true, 'past due date is late');
 		
 		// Clear due date
