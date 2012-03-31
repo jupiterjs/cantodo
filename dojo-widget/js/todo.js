@@ -145,7 +145,7 @@ Todo.List = can.Model.List({
 	
 });
 
-var Todos = can.Control('Todos',{
+Todos = can.Control({
 
 	// Initialize the Todos list
 	init : function(){
