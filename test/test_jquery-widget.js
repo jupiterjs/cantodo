@@ -1,4 +1,4 @@
-steal('test.js?yui-widget').then(function() {
+steal('test.js?jquery-widget').then(function() {
 	
 	var today = new Date(),
 		todayMonth = new Date().getMonth(),
