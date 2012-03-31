@@ -105,7 +105,7 @@ Todos = can.Control({
 		}));
 		
 		// Clear the new todo field
-		$('#new-todo').val('').focus();
+		$('#new-todo').val('')[0].focus();
 	},
 		
 	// Listen for when a new Todo has been entered
@@ -128,7 +128,9 @@ Todos = can.Control({
 	// Listen for editing a Todo
 	'.todo dblclick' : function(el, ev) {
 		el.data('todo').attr('editing', true).save(function() {
-			el.children('.edit').focus().select();
+			var child = el.children('.edit')[0];
+			child.focus();
+			child.select();
 		});
 	},
 

@@ -78,13 +78,17 @@ steal('funcunit', 'funcunit/qunit').then(function() {
 		helpers.incomplete(1);
 		helpers.remove(1);
 		
-		helpers.add(1, 'new todo');
-		S('#todo-list .todo:nth-child(1)').dblclick();
-		S('#todo-list .todo:nth-child(1) .edit').type('more edits');
-		S('#todo-list .todo:nth-child(1) .edit').then(function(el) {
-			el[0].blur();
-		});
-		S('#todo-list .todo:nth-child(1) label').text('more edits', 'edited a todo (blur)');
+		// Edit on blur test, skip for Zepto with non-WebKit browsers
+		// Zepto 0.8 doesn't support this, but the next version will
+		if (library != 'zepto' || navigator.userAgent.match(/WebKit\/([\d.]+)/)) {
+			helpers.add(1, 'new todo');
+			S('#todo-list .todo:nth-child(1)').dblclick();
+			S('#todo-list .todo:nth-child(1) .edit').type('more edits');
+			S('#todo-list .todo:nth-child(1) .edit').then(function(el) {
+				el[0].blur();
+			});
+			S('#todo-list .todo:nth-child(1) label').text('more edits', 'edited a todo (blur)');
+		}
 	});
 		
 	test('Mark all complete', function() {
