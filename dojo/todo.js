@@ -1,8 +1,8 @@
 require({
 	packages: [{
     	name: "can/dojo",
-    	location: location.pathname.replace(/\/[^/]+$/, "") + "/js/libs",
-    	main: "can.dojo-edge"
+    	location: location.pathname.replace(/\/[^/]+$/, ""),
+    	main: "can.dojo"
 	}]
 })
 require(['can/dojo', 
@@ -113,7 +113,7 @@ Todos = can.Control({
 	// Initialize the Todos list
 	init : function(){
 		// Render the Todos
-		this.element.append(can.view('views/todo', {
+		this.element.append(can.view('todo', {
 			todos: this.options.todos
 		}));
 		
