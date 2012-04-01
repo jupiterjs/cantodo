@@ -1,7 +1,7 @@
 require({
 	packages: [{
     	name: "can/dojo",
-    	location: location.pathname.replace(/\/[^/]+$/, ""),
+    	location: "http://donejs.com/can/dist/edge/",
     	main: "can.dojo"
 	}]
 }, ['can/dojo', 
