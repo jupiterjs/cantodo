@@ -226,7 +226,6 @@ Todos = can.Control({
 		can.each(this.options.todos, function(i, todo) {
 			todo.attr('complete', toggle).save();
 		});
-		this.element.query('#todo-list .todo .toggle').attr('checked', toggle);
 	},
 	
 	// Listen for removing all completed Todos
@@ -234,11 +233,6 @@ Todos = can.Control({
 		for (var i = this.options.todos.length - 1, todo; i > -1 && (todo = this.options.todos[i]); i--) {
 			todo.attr('complete') && todo.destroy();
 		}
-	},
-
-	// Update statistics on change in the Todo list
-	'{todos} change' : function(){
-		this.element.query('#toggle-all').attr('checked', this.options.todos.allComplete());
 	},
 
 	// Listen for a change due date request
