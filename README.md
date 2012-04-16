@@ -52,6 +52,9 @@ To run the unit tests:
 	- `yui-widget`: `test/yui-widget.html`
 	- `zepto`: `test/zepto.html`
 
+### License
+Public Domain
+
 ---
 
 Created and maintained by [Bitovi](http://bitovi.com)
