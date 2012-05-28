@@ -17,7 +17,7 @@ Todo = can.Model({
 			data = JSON.parse( window.localStorage[name] || (window.localStorage[name] = '[]') ),
 			res = cb.call(this, data);
 		if(res !== false){
-			can.each(data, function(i, todo) {
+			can.each(data, function(todo) {
 				delete todo.editing;
 			});
 			window.localStorage[name] = JSON.stringify(data);
@@ -29,7 +29,7 @@ Todo = can.Model({
 		this.localStore(function(todos){
 			var instances = [],
 				self = this;
-			can.each(todos, function(i, todo) {
+			can.each(todos, function(todo) {
 				instances.push(new self(todo));
 			});
 			def.resolve({data: instances});
@@ -109,11 +109,8 @@ Todo = can.Model({
 Todo.List = can.Model.List({
 	
 	completed: function() {
-		// Ensure this triggers on length change
-		this.attr('length');
-		
 		var completed = 0;
-		this.each(function(i, todo) {
+		this.each(function(todo) {
 			completed += todo.attr('complete') ? 1 : 0
 		});
 		return completed;
@@ -204,7 +201,7 @@ Todos = can.Control({
 	// Listen for toggle all completed Todos
 	'#toggle-all click' : function(el, ev) {
 		var toggle = el.prop('checked');
-		can.each(this.options.todos, function(i, todo) {
+		can.each(this.options.todos, function(todo) {
 			todo.attr('complete', toggle).save();
 		});
 	},
