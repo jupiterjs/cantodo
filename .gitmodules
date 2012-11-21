@@ -1,6 +1,6 @@
 [submodule "test/steal"]
 	path = test/steal
-	url = git://github.com/jupiterjs/steal.git
+	url = git://github.com/bitovi/steal.git
 [submodule "test/funcunit"]
 	path = test/funcunit
-	url = git://github.com/jupiterjs/funcunit.git
+	url = git://github.com/bitovi/funcunit.git
